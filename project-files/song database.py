@@ -32,7 +32,7 @@ this_is_dummy = 1
 # ----------
 # D:\python coding\ffmpeg-N-101711-ga4e518c321-win64-gpl\bin\song database.py
 # ^ 베타 버전(구)
-# C:\Users\dongi\Desktop\Github\mp-project\mp-project-1.py
+# C:\Users\dongi\Desktop\Github\mp-project\project-files\mp-project-1.py
 # ^ 베타 버전(현) : Github에 연동
 # ----------
 # 중요 : python 파일이 있는 곳에 ffmpeg.exe 와 ffprobe.exe가 있어야지만 정상작동
