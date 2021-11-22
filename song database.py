@@ -27,14 +27,13 @@ this_is_dummy = 1
 # 21.8.13 - 프로젝트 재가동중 (line 274; quality 320 -> 128, line 269; 주석 처리)
 # 21.8.13 정상작동 확인(오류의 원인은 명확히 확보하지 못함, 아마도 line 269로 추정)
 # 21.8.13 /v0.11/
-# 21.10.22 /v0.2/
-# 21.10.22 youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입
+# 21.10.22 /v0.2/ : youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입
+# 21.11.22 /v0.21/ : Github에 업로드
 # ----------
 # D:\python coding\ffmpeg-N-101711-ga4e518c321-win64-gpl\bin\song database.py
-# ^ 베타 버전 -> 수정용
-# D:\python coding\sdb\sd.py
-# ^ 안정화 버전 -> 수정 X, 프로그램화 용
-# * 안정될 때 복사하는 것 잊지 않기, 안정화 버전에서는 현재 사용되지 않는 [실험적] 코드 지우기
+# ^ 베타 버전(구)
+# C:\Users\dongi\Desktop\Github\mp-project\mp-project-1.py
+# ^ 베타 버전(현) : Github에 연동
 # ----------
 # 중요 : python 파일이 있는 곳에 ffmpeg.exe 와 ffprobe.exe가 있어야지만 정상작동
 # ----------
