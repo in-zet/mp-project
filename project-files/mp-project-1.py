@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import glob
-import eyed3
-import youtube_dl
 from tkinter import *
 import mutagen
 from mutagen.easyid3 import EasyID3
@@ -13,33 +11,22 @@ import codecs
 from pytube import YouTube
 from moviepy.editor import *
 
-urllist = []
-namelist = []
-artistlist = []
-albumlist = []
-bc = 2
-this_is_dummy = 1
+
+
 
 # ----------
-# 이 프로젝트는 1차 실패하였습니다.
-# 실패 이유 : MusicBee 이외의 프로그램에서의 재생 불가
-# 추정 : youtube_dl 단계에서의 오류일 가능성이 높음
-# 21.8.13 - 프로젝트 재가동중 (line 274; quality 320 -> 128, line 269; 주석 처리)
-# 21.8.13 정상작동 확인(오류의 원인은 명확히 확보하지 못함, 아마도 line 269로 추정)
-# 21.8.13 /v0.11/
+# 21.x.x /v0.1/ : 프로젝트 폐기 - 작동불능
+# 21.8.13 /v0.11/ : 프로젝트 재가동중 - 정상작동 확인
 # 21.10.22 /v0.2/ : youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입
 # 21.11.22 /v0.21/ : Github에 업로드
+# 21.12.04 /v0.22/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경
 # ----------
 # D:\python coding\ffmpeg-N-101711-ga4e518c321-win64-gpl\bin\song database.py
 # ^ 베타 버전(구)
-# C:\Users\dongi\Desktop\Github\mp-project\project-files\mp-project-1.py
-# ^ 베타 버전(현) : Github에 연동
 # ----------
 # 중요 : python 파일이 있는 곳에 ffmpeg.exe 와 ffprobe.exe가 있어야지만 정상작동
 # ----------
-# [실험적]
-# <정상작동>
-# {오류 발생}
+
 
 def bc1():
     global bc
@@ -77,56 +64,56 @@ def bc8():
 
 # [실험적]
 def vcl():  # for test
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
-    urllist.append("https://www.youtube.com/watch?v=UnIhRpIT7nc")
-    namelist.append("ラグトレイン")
-    artistlist.append("歌愛ユキ")
-    albumlist.append("稲葉曇")
-    urllist.append("https://www.youtube.com/watch?v=e1xCOsgWG0M")
-    namelist.append("ヴァンパイア")
-    artistlist.append("初音ミク")
-    albumlist.append("DECO*27")
-    urllist.append("https://www.youtube.com/watch?v=emrt46SRyYs")
-    namelist.append("DAYBREAK FRONTLINE")
-    artistlist.append("IA")
-    albumlist.append("Orangestar")
-    urllist.append("https://www.youtube.com/watch?v=romqp_SB4tU")
-    namelist.append("ノイローゼ")
-    artistlist.append("v flower")
-    albumlist.append("栗山夕璃")
-    urllist.append("https://www.youtube.com/watch?v=ARt2fVT33Lw")
-    namelist.append("SLoWMoTIoN")
-    artistlist.append("初音ミク")
-    albumlist.append("ピノキオピー")
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
+    url_list.append("https://www.youtube.com/watch?v=UnIhRpIT7nc")
+    name_list.append("ラグトレイン")
+    artist_list.append("歌愛ユキ")
+    album_list.append("稲葉曇")
+    url_list.append("https://www.youtube.com/watch?v=e1xCOsgWG0M")
+    name_list.append("ヴァンパイア")
+    artist_list.append("初音ミク")
+    album_list.append("DECO*27")
+    url_list.append("https://www.youtube.com/watch?v=emrt46SRyYs")
+    name_list.append("DAYBREAK FRONTLINE")
+    artist_list.append("IA")
+    album_list.append("Orangestar")
+    url_list.append("https://www.youtube.com/watch?v=romqp_SB4tU")
+    name_list.append("ノイローゼ")
+    artist_list.append("v flower")
+    album_list.append("栗山夕璃")
+    url_list.append("https://www.youtube.com/watch?v=ARt2fVT33Lw")
+    name_list.append("SLoWMoTIoN")
+    artist_list.append("初音ミク")
+    album_list.append("ピノキオピー")
     e5.delete(0, len(e5.get()))
     e5.insert(0, 'リストを確認してみて！')
 
 
 # 리스트에 저장
 def save():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
     yturl = e1.get()
     filename = e2.get()
-    artistn = e3.get()
-    albumn = e4.get()
+    artistname = e3.get()
+    albumname = e4.get()
     e1.delete(0, len(e1.get()))
     e2.delete(0, len(e2.get()))
     e3.delete(0, len(e3.get()))
     e4.delete(0, len(e4.get()))
     e5.delete(0, len(e5.get()))
 
-    isiticn = 0
+    if_incorrect = 0
     for i in range(len(f'{filename}')):
         if f'{filename[i]}' == '.' or f'{filename[i]}' == '/' or f'{filename[i]}' == '\\' or f'{filename[i]}' == ':'\
             or f'{filename[i]}' == '*' or f'{filename[i]}' == '?' or f'{filename[i]}' == '"' or f'{filename[i]}' == '<'\
             or f'{filename[i]}' == '>' or f'{filename[i]}' == '|' or f'{filename[i]}' == '%' or f'{filename[i]}' == '≒':
-            isiticn = 1
+            if_incorrect = 1
 
     if yturl == None:
         e5.insert(0, 'incorrect youtube url')
@@ -139,13 +126,13 @@ def save():
         e5.insert(0, 'incorrect fliename')
     elif yturl == None:
         e5.insert(0, 'incorrect url')
-    elif isiticn == 1:
+    elif if_incorrect == 1:
         e5.insert(0, 'incorrent filename')
     else:
-        urllist.append(yturl)
-        namelist.append(filename)
-        artistlist.append(artistn)
-        albumlist.append(albumn)
+        url_list.append(yturl)
+        name_list.append(filename)
+        artist_list.append(artistname)
+        album_list.append(albumname)
         e5.insert(0, 'saved - %s' % filename)
 
 
@@ -161,16 +148,28 @@ def reset():
 
 # 리스트 보기
 def seel():
-    global n2window
     seelist = ""
-    for i in range(len(namelist)):
-        seelist += namelist[i] + " : " + urllist[i] + "\n"
-    n2window = Toplevel(window)
-    n2window.geometry('500x200')
-    n2window.resizable(width=True, height=True)
-    nl1 = Label(n2window, text=seelist)
+    for i in range(len(name_list)):
+        seelist += name_list[i] + " : " + url_list[i] + "\n"
+    nwindow = Toplevel(window)
+    nwindow.geometry('500x200')
+    nwindow.resizable(width=True, height=True)
+    nl1 = Label(nwindow, text=seelist)
     nl1.place(x=10, y=10)
-    n2window.mainloop()
+    nwindow.mainloop()
+
+
+# info
+def pup2():
+    loading = codecs.open('C:/Users/dongi/Desktop/min/info.txt', 'rb', 'utf-8')
+    loadedinfo = loading.read()
+    loading.close()
+    nwindow = Toplevel(window)
+    nwindow.geometry('300x300')
+    nwindow.resizable(width=True, height=True)
+    nl1 = Label(nwindow, text=loadedinfo)
+    nl1.place(x=10, y=10)
+    nwindow.mainloop()
 
 
 # '정말입니까' 확인창
@@ -188,41 +187,13 @@ def pup():
     nwindow.mainloop()
 
 
-# info
-def pup2():
-    global nwindow2
-    loading = codecs.open('C:/Users/dongi/Desktop/min/info.txt', 'rb', 'utf-8')
-    loadedinfo = loading.read()
-    loading.close()
-    nwindow2 = Toplevel(window)
-    nwindow2.geometry('300x300')
-    nwindow2.resizable(width=True, height=True)
-    nl1 = Label(nwindow2, text=loadedinfo)
-    nl1.place(x=10, y=10)
-    nwindow2.mainloop()
-
-
 # '정말입니까' 에서 예
 def isyes():
     global nwindow
     global bc
+    global fnc_list
     nwindow.destroy()
-    if bc == 1:
-        rundo()
-    elif bc == 2:
-        listreset()
-    elif bc == 3:
-        tagging2()
-    elif bc == 4:
-        dl2()
-    elif bc == 5:
-        dev()
-    elif bc == 6:
-        lyricwrite1()
-    elif bc == 7:
-        in_txt()
-    elif bc == 8:
-        ex_txt()
+    fnc_list[bc-1]()
 
 
 # '정말입니까' 에서 아니오
@@ -233,84 +204,50 @@ def isno():
 
 # 리스트 마지막 하나 없애기
 def rundo():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
-    del urllist[-1]
-    del namelist[-1]
-    del artistlist[-1]
-    del albumlist[-1]
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
+    del url_list[-1]
+    del name_list[-1]
+    del artist_list[-1]
+    del album_list[-1]
     e5.delete(0, len(e5.get()))
     e5.insert(0, 'undo completed')
 
 
 # 리스트 리셋
 def listreset():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
-    urllist = []
-    namelist = []
-    artistlist = []
-    albumlist = []
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
+    url_list = []
+    name_list = []
+    artist_list = []
+    album_list = []
     e5.delete(0, len(e5.get()))
     e5.insert(0, 'list reset completed')
 
 
-# [실험적]
-# 태그 작성 1식
-# Without id3 tags: 'NoneType' object has no attribute 'tag'
-def tagging1():
-    try:
-        for i in range(len(namelist)):
-            path1 = "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % namelist[i]
-            tag1 = eyed3.load(path1)
-            tag1.initTag()  # 'NoneType' object has no attribute 'initTag'
-            tag1.tag.artist = str(artistlist[i])
-            tag1.tag.album = str(albumlist[i])
-            tag1.tag.save()
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'tagging completed')
-    except Exception as e:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'error ' + str(e))
-
-
-# <정상작동>
-# 태그 작성 2식
-# not using eyed3
-def tagging2():  # currently using
+# 태그 작성 - mutagen
+def tagging():
     try:
 
-        for i in range(len(namelist)):
-            path1 = "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % namelist[i]
-            """tag11 = ID3(path1)
-            tag11.add(TIT2(encording=3, text="1"))
-            tag11.save()"""
-            try:
-                tag1 = EasyID3(path1)
-            except mutagen.id3.ID3NoHeaderError:  # an MP4 tag already exists
-                tag1 = mutagen.File(path1, easy=True)
-                tag1.add_tags()
-            if artistlist[i] != None:
-                tag1['artist'] = str(artistlist[i])
-            if albumlist[i] != None:
-                tag1['album'] = str(albumlist[i])
-            tag1.save(path1, v1=2)
+        for i in range(len(name_list)):
+            for i in range(1, 3):
+                path1 = "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % name_list[i]
+                try:
+                    tag1 = EasyID3(path1)
+                except mutagen.id3.ID3NoHeaderError:  # an MP4 tag already exists
+                    tag1 = mutagen.File(path1, easy=True)
+                    tag1.add_tags()
+                if artist_list[i] != None:
+                    tag1['artist'] = str(artist_list[i])
+                if album_list[i] != None:
+                    tag1['album'] = str(album_list[i])
+                tag1.save(path1, v1=i)
 
-            path1 = "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % namelist[i]
-            try:
-                tag1 = EasyID3(path1)
-            except mutagen.id3.ID3NoHeaderError:  # an MP4 tag already exists
-                tag1 = mutagen.File(path1, easy=True)
-                tag1.add_tags()
-            if artistlist[i] != None:
-                tag1['artist'] = str(artistlist[i])
-            if albumlist[i] != None:
-                tag1['album'] = str(albumlist[i])
-            tag1.save(path1, v1=1)
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'tagging completed')
 
@@ -319,126 +256,94 @@ def tagging2():  # currently using
         e5.insert(0, 'error: ' + str(e))
 
 
-# [실험적]
-# 유튜브에서 노래 다운로드 - youtube_dll 1식 (속도 매우느림)
-def dl():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
+# 가사 작성 - mutagen
+def lyricwrite():
     path_dir_mp3 = 'C:/Users/dongi/Desktop/min/mp3'
     path_dir_lyrics = 'C:/Users/dongi/Desktop/min/lyrics'
     mp3_list = os.listdir(path_dir_mp3)
     lyrics_list = os.listdir(path_dir_lyrics)
-    isitagainm = 0
-    isitagainl = 0
+    rightnum = 0
 
-    try:
-        for i in range(len(namelist)):
+    if len(mp3_list) < len(lyrics_list):
+        for i in range(len(mp3_list)):
             for j in range(len(lyrics_list)):
-                if namelist[i] == f'{lyrics_list[j][:-4]}':  # 중복가사파일확인
-                    isitagainl = 1
+                if f'{mp3_list[i][:-4]}' == f'{lyrics_list[j][:-4]}':
+                    rightnum = j
+            mp3path = 'C:/Users/dongi/Desktop/min/mp3/' + mp3_list[i]
+            lyricspath = 'C:/Users/dongi/Desktop/min/lyrics/' + lyrics_list[rightnum]
+            tag1 = EasyID3(mp3path)
+            ln1 = open(lyricspath, 'r')
+            lyr1 = ln1.read()
+            tag1['lyricist'] = str(lyr1)
+            tag1.save(mp3path, v1=2)
+            ln1.close()
+            e5.delete(0, len(e5.get()))
+            e5.insert(0, 'lyric completed')
 
-            if isitagainl == 0:
-                _ = open("C:/Users/dongi/Desktop/min/lyrics/%s.txt" % namelist[i], 'w')
-            elif isitagainl == 1:
-                isitagainl = 0
-                print("\n%s lyric file skipped\n" % namelist[i])
+    elif len(mp3_list) == len(lyrics_list):
+        for i in range(len(mp3_list)):
+            mp3path = 'C:/Users/dongi/Desktop/min/mp3/' + mp3_list[i]
+            lyricspath = 'C:/Users/dongi/Desktop/min/lyrics/' + lyrics_list[i]
+            tag1 = EasyID3(mp3path)
+            ln1 = open(lyricspath, 'r')
+            lyr1 = ln1.read()
+            tag1['lyricist'] = str(lyr1)
+            tag1.save(mp3path, v1=2)
+            ln1.close()
+            e5.delete(0, len(e5.get()))
+            e5.insert(0, 'lyric completed')
 
-        for i in range(len(namelist)):
-            for j in range(len(mp3_list)):
-                if namelist[i] == f'{mp3_list[j][:-4]}':  # 중복음악파일확인
-                    isitagainm = 1
-
-            if isitagainm == 0:
-                download_path = "C:/Users/dongi/Desktop/min/mp3/%s" % namelist[i]
-                url1 = urllist[i]
-
-                print("\n%s" % namelist[i])  # checking in console
-                print("%s\n" % url1)
-
-                ydl_opts = {
-                    # 'format': 'bestaudio/best', -> 오류의 원인으로 추정됨
-                    'outtmpl': download_path,
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '128',
-                    }],
-                }
-                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url1])
-
-            elif isitagainm == 1:
-                isitagainm = 0
-                print("\n%s mp3 file skipped\n" % namelist[i])
-
+    else:
         e5.delete(0, len(e5.get()))
-        e5.insert(0, 'downloded')
-        print("\nFIN\n")
-
-    except Exception as e:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'error: ' + str(e))
+        e5.insert(0, 'the number of mp3s and lyrics are not same')
 
 
-# <정상작동>
-# 유튜브에서 노래 다운로드 - pytube 2식
-def dl2():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
+# 유튜브에서 노래 다운로드 - pytube
+def downloading():
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
     path_dir_mp3 = 'C:/Users/dongi/Desktop/min/mp3'
     path_dir_lyrics = 'C:/Users/dongi/Desktop/min/lyrics'
     mp3_list = os.listdir(path_dir_mp3)
     lyrics_list = os.listdir(path_dir_lyrics)
-    isitagainm = 0
-    isitagainl = 0
+    if_again_mp3 = 0
+    if_again_lyric = 0
 
     try:
-        for i in range(len(namelist)):
+        for i in range(len(name_list)):
             for j in range(len(lyrics_list)):
-                if namelist[i] == f'{lyrics_list[j][:-4]}':  # 중복가사파일확인
-                    isitagainl = 1
+                if name_list[i] == f'{lyrics_list[j][:-4]}':  # 중복가사파일확인
+                    if_again_lyric = 1
 
-            if isitagainl == 0:
-                _ = open("C:/Users/dongi/Desktop/min/lyrics/%s.txt" % namelist[i], 'w')
-            elif isitagainl == 1:
-                isitagainl = 0
-                print("\n%s lyric file skipped\n" % namelist[i])
+            if if_again_lyric == 0:
+                _ = open("C:/Users/dongi/Desktop/min/lyrics/%s.txt" % name_list[i], 'w')
+            elif if_again_lyric == 1:
+                if_again_lyric = 0
+                print("\n%s lyric file skipped\n" % name_list[i])
 
-        for i in range(len(namelist)):
+        for i in range(len(name_list)):
             for j in range(len(mp3_list)):
-                if namelist[i] == f'{mp3_list[j][:-4]}':  # 중복음악파일확인
-                    isitagainm = 1
+                if name_list[i] == f'{mp3_list[j][:-4]}':  # 중복음악파일확인
+                    if_again_mp3 = 1
 
-            if isitagainm == 0:
-                download_path = "C:/Users/dongi/Desktop/min/mp3/%s" % namelist[i]
-                url1 = urllist[i]
+            if if_again_mp3 == 0:
+                download_path = "C:/Users/dongi/Desktop/min/mp3/%s" % name_list[i]
+                url1 = url_list[i]
 
-                print("\n%s" % namelist[i])  # checking in console
+                print("\n%s" % name_list[i])  # checking in console
                 print("%s\n" % url1)
 
                 yt = YouTube(url1)
-                #yt.streams.filter(only_audio=True).all()  .filter(only_audio=True)
-                yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(path_dir_mp3, "C:/Users/dongi/Desktop/min/mp3/%s.mp4" % namelist[i])
+                yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(path_dir_mp3, "C:/Users/dongi/Desktop/min/mp4/%s.mp4" % name_list[i])
 
-                vv = VideoFileClip(os.path.join("C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3/%s.mp4" % namelist[i]))
-                vv.audio.write_audiofile(os.path.join("C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % namelist[i]))
+                vv = VideoFileClip(os.path.join("C:/Users/dongi/Desktop/min/mp4", "C:/Users/dongi/Desktop/min/mp4", "C:/Users/dongi/Desktop/min/mp4/%s.mp4" % name_list[i]))
+                vv.audio.write_audiofile(os.path.join("C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % name_list[i]))
 
-                """
-                try:   # 추정: 헤더가 바뀌지 않고 확장자만 바뀌어서 문제 생김
-                    os.rename("C:/Users/dongi/Desktop/min/mp3/%s.mp4" % namelist[i], "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % namelist[i])
-                except Exception as e:
-                    e5.delete(0, len(e5.get()))
-                    e5.insert(0, 'error: ' + str(e))
-                    return
-                    """
-
-            elif isitagainm == 1:
-                isitagainm = 0
-                print("\n%s mp3 file skipped\n" % namelist[i])
+            elif if_again_mp3 == 1:
+                if_again_mp3 = 0
+                print("\n%s mp3 file skipped\n" % name_list[i])
 
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'downloded')
@@ -449,12 +354,12 @@ def dl2():
         e5.insert(0, 'error: ' + str(e))
 
 
+# mp4 파일 삭제
 def delx():
-    global namelist
-    path_dir_mp3 = 'C:/Users/dongi/Desktop/min/mp3'
+    global name_list
     try:
-        for i in range(len(namelist)):
-            os.remove("C:/Users/dongi/Desktop/min/mp3/%s.mp4" % namelist[i])
+        for i in range(len(name_list)):
+            os.remove("C:/Users/dongi/Desktop/min/mp3/%s.mp4" % name_list[i])
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'deleted')
     except Exception as e:
@@ -467,171 +372,82 @@ def delx():
 def dev():
     global nwindow
     nwindow.destroy()
-    print(urllist)
-    print(namelist)
-    print(artistlist)
-    print(albumlist)
+    print(url_list)
+    print(name_list)
+    print(artist_list)
+    print(album_list)
     """[os.remove(f) for f in glob.glob("C:/Users/dongi/Desktop/min/mp3/*.mp3")]
     [os.remove(f) for f in glob.glob("C:/Users/dongi/Desktop/min/lyrics/*.txt")]"""
     e5.delete(0, len(e5.get()))
     e5.insert(0, 'dev')
 
 
-# <정상작동>
-# 가사 작성 1식
-# Without id3 tags: 'NoneType' object has no attribute 'tag'
-def lyricwrite1():  # currently using
-    path_dir_mp3 = 'C:/Users/dongi/Desktop/min/mp3'
-    path_dir_lyrics = 'C:/Users/dongi/Desktop/min/lyrics'
-    mp3_list = os.listdir(path_dir_mp3)
-    lyrics_list = os.listdir(path_dir_lyrics)
-    rightnum = 0
-
-    if len(mp3_list) < len(lyrics_list):
-        for i in range(len(mp3_list)):
-            for j in range(len(lyrics_list)):
-                if f'{mp3_list[i][:-4]}' == f'{lyrics_list[j][:-4]}':
-                    rightnum = j
-            mp3path = 'C:/Users/dongi/Desktop/min/mp3/' + mp3_list[i]
-            lyricspath = 'C:/Users/dongi/Desktop/min/lyrics/' + lyrics_list[rightnum]
-            tg1 = eyed3.load(mp3path)
-            ln1 = codecs.open(lyricspath, 'r', 'utf-8')
-            lyr1 = ln1.read()
-            tg1.tag.lyrics.set(lyr1)
-            tg1.tag.save()
-            ln1.close()
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, 'lyric completed')
-
-    elif len(mp3_list) == len(lyrics_list):
-        for i in range(len(mp3_list)):
-            mp3path = 'C:/Users/dongi/Desktop/min/mp3/' + mp3_list[i]
-            lyricspath = 'C:/Users/dongi/Desktop/min/lyrics/' + lyrics_list[i]
-            tg1 = eyed3.load(mp3path)
-            ln1 = codecs.open(lyricspath, 'r', 'utf-8')
-            lyr1 = ln1.read()
-            tg1.tag.lyrics.set(lyr1)
-            tg1.tag.save()
-            ln1.close()
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, 'lyric completed')
-    else:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'the number of mp3s and lyrics are not same')
-
-
-# [실험적]
-# 가사 작성 2식
-# not using eyed3
-def lyricwrite2():
-    path_dir_mp3 = 'C:/Users/dongi/Desktop/min/mp3'
-    path_dir_lyrics = 'C:/Users/dongi/Desktop/min/lyrics'
-    mp3_list = os.listdir(path_dir_mp3)
-    lyrics_list = os.listdir(path_dir_lyrics)
-    rightnum = 0
-
-    if len(mp3_list) < len(lyrics_list):
-        for i in range(len(mp3_list)):
-            for j in range(len(lyrics_list)):
-                if f'{mp3_list[i][:-4]}' == f'{lyrics_list[j][:-4]}':
-                    rightnum = j
-            mp3path = 'C:/Users/dongi/Desktop/min/mp3/' + mp3_list[i]
-            lyricspath = 'C:/Users/dongi/Desktop/min/lyrics/' + lyrics_list[rightnum]
-            tag1 = EasyID3(mp3path)
-            ln1 = open(lyricspath, 'r')
-            lyr1 = ln1.read()
-            tag1['lyricist'] = str(lyr1)
-            tag1.save(mp3path, v1=2)
-            ln1.close()
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, 'lyric completed')
-
-    elif len(mp3_list) == len(lyrics_list):
-        for i in range(len(mp3_list)):
-            mp3path = 'C:/Users/dongi/Desktop/min/mp3/' + mp3_list[i]
-            lyricspath = 'C:/Users/dongi/Desktop/min/lyrics/' + lyrics_list[i]
-            tag1 = EasyID3(mp3path)
-            ln1 = open(lyricspath, 'r')
-            lyr1 = ln1.read()
-            tag1['lyricist'] = str(lyr1)
-            tag1.save(mp3path, v1=2)
-            ln1.close()
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, 'lyric completed')
-
-    else:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'the number of mp3s and lyrics are not same')
-
-
-# <정상작동>
 # 정보 불러오기
 def in_txt():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
-    urllist = []
-    namelist = []
-    artistlist = []
-    albumlist = []
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
+    url_list = []
+    name_list = []
+    artist_list = []
+    album_list = []
     loading = codecs.open('C:/Users/dongi/Desktop/min/save/_save_url.txt', 'rb', 'utf-8')
-    urllist = loading.read().split('\n')
+    url_list = loading.read().split('\n')
     loading.close()
     loading = codecs.open('C:/Users/dongi/Desktop/min/save/_save_name.txt', 'rb', 'utf-8')
-    namelist = loading.read().split('\n')
+    name_list = loading.read().split('\n')
     loading.close()
     loading = codecs.open('C:/Users/dongi/Desktop/min/save/_save_artist.txt', 'rb', 'utf-8')
-    artistlist = loading.read().split('\n')
+    artist_list = loading.read().split('\n')
     loading.close()
     loading = codecs.open('C:/Users/dongi/Desktop/min/save/_save_album.txt', 'rb', 'utf-8')
-    albumlist = loading.read().split('\n')
+    album_list = loading.read().split('\n')
     loading.close()
-    if len(urllist) != len(namelist) or len(namelist) != len(artistlist) or len(artistlist) != len(albumlist) or len(urllist) != len(albumlist):
+    if len(url_list) != len(name_list) or len(name_list) != len(artist_list) or len(artist_list) != len(album_list) or len(url_list) != len(album_list):
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'error : different lines')
-        urllist = []
-        namelist = []
-        artistlist = []
-        albumlist = []
+        url_list = []
+        name_list = []
+        artist_list = []
+        album_list = []
     else:
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'import completed')
 
 
-# <정상작동>
 # 정보 내보내기
 def ex_txt():
-    global urllist
-    global namelist
-    global artistlist
-    global albumlist
+    global url_list
+    global name_list
+    global artist_list
+    global album_list
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_url.txt', 'w', 'utf-8')
-    for i in range(len(namelist) - 1):
-        save_data += urllist[i] + "\n"
-    save_data += urllist[-1]
+    for i in range(len(name_list) - 1):
+        save_data += url_list[i] + "\n"
+    save_data += url_list[-1]
     saving.write(save_data)
     saving.close()
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_name.txt', 'w', 'utf-8')
-    for i in range(len(namelist) - 1):
-        save_data += namelist[i] + "\n"
-    save_data += namelist[-1]
+    for i in range(len(name_list) - 1):
+        save_data += name_list[i] + "\n"
+    save_data += name_list[-1]
     saving.write(save_data)
     saving.close()
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_artist.txt', 'w', 'utf-8')
-    for i in range(len(namelist) - 1):
-        save_data += artistlist[i] + "\n"
-    save_data += artistlist[-1]
+    for i in range(len(name_list) - 1):
+        save_data += artist_list[i] + "\n"
+    save_data += artist_list[-1]
     saving.write(save_data)
     saving.close()
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_album.txt', 'w', 'utf-8')
-    for i in range(len(namelist) - 1):
-        save_data += albumlist[i] + "\n"
-    save_data += albumlist[-1]
+    for i in range(len(name_list) - 1):
+        save_data += album_list[i] + "\n"
+    save_data += album_list[-1]
     saving.write(save_data)
     saving.close()
     e5.delete(0, len(e5.get()))
@@ -675,6 +491,15 @@ def una():
     e3.insert(0, '音街ウナ')
 def gakupo():
     e3.insert(0, '神威がくぽ')
+
+
+url_list = []
+name_list = []
+artist_list = []
+album_list = []
+bc = 2
+this_is_dummy = 1
+fnc_list = [rundo, listreset, tagging, downloading, dev, lyricwrite, in_txt, ex_txt]
 
 
 # GUI 창
