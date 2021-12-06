@@ -424,72 +424,72 @@ def ex_txt():
     global album_list
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_url.txt', 'w', 'utf-8')
-    for i in range(len(name_list) - 1):
+    for i in range(len(name_list)):
         save_data += url_list[i] + "\n"
-    save_data += url_list[-1]
-    saving.write(save_data)
+    saving.write(save_data[:-1])
     saving.close()
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_name.txt', 'w', 'utf-8')
-    for i in range(len(name_list) - 1):
+    for i in range(len(name_list)):
         save_data += name_list[i] + "\n"
-    save_data += name_list[-1]
-    saving.write(save_data)
+    saving.write(save_data[:-1])
     saving.close()
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_artist.txt', 'w', 'utf-8')
-    for i in range(len(name_list) - 1):
+    for i in range(len(name_list)):
         save_data += artist_list[i] + "\n"
-    save_data += artist_list[-1]
-    saving.write(save_data)
+    saving.write(save_data[:-1])
     saving.close()
     save_data = ""
     saving = codecs.open('C:/Users/dongi/Desktop/min/save/_save_album.txt', 'w', 'utf-8')
-    for i in range(len(name_list) - 1):
+    for i in range(len(name_list)):
         save_data += album_list[i] + "\n"
-    save_data += album_list[-1]
-    saving.write(save_data)
+    saving.write(save_data[:-1])
     saving.close()
     e5.delete(0, len(e5.get()))
     e5.insert(0, 'export completed')
 
 
 # 자동 보카로 입력기
-def miku():
+def hotkey_input_1():
     e3.insert(0, '初音ミク')
-def rin():
+def hotkey_input_2():
     e3.insert(0, '鏡音リン')
-def slash():
+def hotkey_input_3():
     e3.insert(0, '/')
-def Len():
+def hotkey_input_4():
     e3.insert(0, '鏡音レン')
-def rin_len():
+def hotkey_input_5():
     e3.insert(0, '鏡音リン · レン')
-def dash():
+def hotkey_input_6():
     e2.insert(0, ' - ')
-def gumi():
+def hotkey_input_7():
     e3.insert(0, 'GUMI')
-def ia():
+def hotkey_input_8():
     e3.insert(0, 'IA')
-def flower():
+def hotkey_input_9():
     e3.insert(0, 'v flower')
-def luka():
+def hotkey_input_10():
     e3.insert(0, '巡音ルカ')
-def yukari():
+def hotkey_input_11():
     e3.insert(0, '結月ゆかり')
-def rikka():
+def hotkey_input_12():
     e3.insert(0, '小春六花')
-def kahu():
+def hotkey_input_13():
     e3.insert(0, '可不')
-def yuki():
+def hotkey_input_14():
     e3.insert(0, '歌愛ユキ')
-def meiko():
+def hotkey_input_15():
     e3.insert(0, 'MEIKO')
-def kaito():
+def hotkey_input_16():
     e3.insert(0, 'KAITO')
-def una():
+def hotkey_input_17():
     e3.insert(0, '音街ウナ')
-def gakupo():
+def hotkey_input_18():
+    e3.insert(0, '神威がくぽ')
+def hotkey_input_19():
+    e3.insert(0, '音街ウナ')
+def hotkey_input_20():
     e3.insert(0, '神威がくぽ')
 
 
@@ -582,24 +582,26 @@ bsp1 = Button(window, text="정보", command=pup2)
 bsp1.place(x=150, y=350)
 
 # to line 425 ~
-b0211 = Button(window, text="初音ミク", command=miku)
-b0212 = Button(window, text="鏡音リン", command=rin)
-b0213 = Button(window, text="/", command=slash)
-b0221 = Button(window, text="鏡音レン", command=Len)
-b0222 = Button(window, text="鏡音リン · レン", command=rin_len)
-b0223 = Button(window, text="* - ", command=dash)
-b0231 = Button(window, text="GUMI", command=gumi)
-b0232 = Button(window, text="IA", command=ia)
-b0241 = Button(window, text="v flower", command=flower)
-b0242 = Button(window, text="巡音ルカ", command=luka)
-b0251 = Button(window, text="結月ゆかり", command=yukari)
-b0252 = Button(window, text="小春六花", command=rikka)
-b0261 = Button(window, text="可不", command=kahu)
-b0262 = Button(window, text="歌愛ユキ", command=yuki)
-b0271 = Button(window, text="MEIKO", command=meiko)
-b0272 = Button(window, text="KAITO", command=kaito)
-b0281 = Button(window, text="音街ウナ", command=una)
-b0282 = Button(window, text="神威がくぽ", command=gakupo)
+b0211 = Button(window, text="初音ミク", command=hotkey_input_1)
+b0212 = Button(window, text="鏡音リン", command=hotkey_input_2)
+b0213 = Button(window, text="/", command=hotkey_input_3)
+b0221 = Button(window, text="鏡音レン", command=hotkey_input_4)
+b0222 = Button(window, text="鏡音リン · レン", command=hotkey_input_5)
+b0223 = Button(window, text="* - ", command=hotkey_input_6)
+b0231 = Button(window, text="GUMI", command=hotkey_input_7)
+b0232 = Button(window, text="IA", command=hotkey_input_8)
+b0241 = Button(window, text="v flower", command=hotkey_input_9)
+b0242 = Button(window, text="巡音ルカ", command=hotkey_input_10)
+b0251 = Button(window, text="結月ゆかり", command=hotkey_input_11)
+b0252 = Button(window, text="小春六花", command=hotkey_input_12)
+b0261 = Button(window, text="可不", command=hotkey_input_13)
+b0262 = Button(window, text="歌愛ユキ", command=hotkey_input_14)
+b0271 = Button(window, text="MEIKO", command=hotkey_input_15)
+b0272 = Button(window, text="KAITO", command=hotkey_input_16)
+b0281 = Button(window, text="音街ウナ", command=hotkey_input_17)
+b0282 = Button(window, text="神威がくぽ", command=hotkey_input_18)
+b0291 = Button(window, text="音街ウナ", command=hotkey_input_19)
+b0292 = Button(window, text="神威がくぽ", command=hotkey_input_20)
 
 b0211.place(x=10, y=400)
 b0212.place(x=100, y=400)
@@ -619,6 +621,8 @@ b0271.place(x=10, y=550)
 b0272.place(x=100, y=550)
 b0281.place(x=10, y=575)
 b0282.place(x=100, y=575)
+b0291.place(x=10, y=600)
+b0292.place(x=100, y=600)
 
 try:
     in_txt()
