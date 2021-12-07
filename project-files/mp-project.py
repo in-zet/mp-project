@@ -10,11 +10,8 @@ from mutagen._file import *
 import codecs
 from pytube import YouTube
 from moviepy.editor import *
+import getpass
 
-#from downloads import *
-#from porters import *
-#from settings import *
-#from lists import *
 
 # ----------
 # 21.x.x /v0.1/ : 프로젝트 폐기 - 작동불능
@@ -202,7 +199,6 @@ def lyric_tagging():
 # =================================================불러오기//내보내기=================================================
 # =================================================불러오기//내보내기=================================================
 
-
 def in_txt():
     global url_list
     global name_list
@@ -327,7 +323,6 @@ def settings_open():
 
 
     def winres1():
-        print(cv11.get())
         if cv11.get() == 0:
             setting_window.geometry('250x300')
             setting_window.resizable(width=False, height=False)
@@ -348,8 +343,6 @@ def settings_open():
             if tges_list[i].get() != 1 or 2 or 3 or 4:
                 continue
             settings_dict['hotkeyslotwhere' + str(int(i)+1)] = tges_list[i].get()
-
-        print(settings_dict)
 
         setting_window.destroy()
 
@@ -397,10 +390,10 @@ def settings_open():
 
     tg1 = Label(setting_window, text='text1: ')
     tg2 = Label(setting_window, text='text2: ')
-    tg3 = Label(setting_window, text='text3: ')
+    tg3 = Label(setting_window, text='text3: ', fg='red')
     tg4 = Label(setting_window, text='text4: ')
     tg5 = Label(setting_window, text='text5: ')
-    tg6 = Label(setting_window, text='text6: ')
+    tg6 = Label(setting_window, text='text6: ', fg='red')
     tg7 = Label(setting_window, text='text7: ')
     tg8 = Label(setting_window, text='text8: ')
     tg9 = Label(setting_window, text='text9: ')
@@ -728,6 +721,7 @@ def main_loop():
     global e3
     global e4
     global e5
+    global is_first
 
     # GUI 창
     window = Tk()
@@ -854,6 +848,26 @@ def main_loop():
     b0282.place(x=100, y=575)
     b0291.place(x=10, y=600)
     b0292.place(x=100, y=600)
+
+    if is_first == 1:
+        try:
+            loading = codecs.open('C:/Users/%s/Desktop/min/settings.txt' % getpass.getuser(), 'rb', 'utf-8')
+            settings_list = loading.read().replace('\r', '').split('\n')
+            loading.close()
+            for i in range(len(settings_dict)):
+                try:
+                    settings_dict[settings_list[i].split('=')[0]] = int(settings_list[i].split('=')[1])
+                except:
+                    settings_dict[settings_list[i].split('=')[0]] = settings_list[i].split('=')[1]
+
+            e5.delete(0, len(e5.get()))
+            e5.insert(0, 'settings loaded')
+        except:
+            pass
+        try:
+            in_txt()
+        except:
+            pass
 
     window.mainloop()
 
@@ -1050,7 +1064,7 @@ url_list = []
 name_list = []
 artist_list = []
 album_list = []
-this_is_dummy = 1
+is_first = 1
 settings_dict = {'path': '', 'iscreatelyric': 0, 'ismp3': 1, 'ismp4': 0, 'isdevmode': 0,
         'hotkeyslot1': '', 'hotkeyslot2': '', 'hotkeyslot3': '', 'hotkeyslot4': '', 'hotkeyslot5': '',
         'hotkeyslot6': '', 'hotkeyslot7': '', 'hotkeyslot8': '', 'hotkeyslot9': '', 'hotkeyslot10': '',
@@ -1065,10 +1079,5 @@ settings_dict = {'path': '', 'iscreatelyric': 0, 'ismp3': 1, 'ismp4': 0, 'isdevm
 # =================================================구동부=================================================
 # =================================================구동부=================================================
 # =================================================구동부=================================================
-
-try:
-    in_txt()
-except:
-    pass
 
 main_loop()
