@@ -43,6 +43,7 @@ def downloading():
         yt = YouTube(url_list[i])
         yt.streams.filter(progressive=True, file_extension='mp4').order_by(
             'resolution').desc().first().download(None, settings_dict['path'] + "/min/mp4/%s.mp4" % name_list[i])
+        #s.system('taskkill /f /im ffmpeg-win64-v4.2.2.exe')
 
 
     def transfer_mp3():  # transfer mp4 to mp3
@@ -50,6 +51,7 @@ def downloading():
             settings_dict['path'] + "/min/mp4/%s.mp4" % name_list[i]))
         vv.audio.write_audiofile(os.path.join(settings_dict['path'] + "/min/mp3",
             settings_dict['path'] + "/min/mp3/%s.mp3" % name_list[i]))
+        os.system('taskkill /f /im ffmpeg-win64-v4.2.2.exe')
 
 
     def delete_mp4(name):
@@ -105,7 +107,7 @@ def downloading():
                         if_again_mp3 = 0
                         print("%s mp3 file skipped\n" % name_list[i])
 
-                if settings_dict['ismp3'] == 1:
+                if settings_dict['ismp4'] == 0:
 
                     delete_mp4(name_list[i])
 
@@ -868,6 +870,7 @@ def main_loop():
             in_txt()
         except:
             pass
+        is_first = 0
 
     window.mainloop()
 
