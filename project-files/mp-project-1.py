@@ -19,7 +19,7 @@ from moviepy.editor import *
 # 21.8.13 /v0.11/ : 프로젝트 재가동중 - 정상작동 확인
 # 21.10.22 /v0.2/ : youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입
 # 21.11.22 /v0.21/ : Github에 업로드
-# 21.12.04 /v0.22/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경
+# 21.12.04 /v0.22/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경, eyed3 사용 중지 및 제거
 # ----------
 # D:\python coding\ffmpeg-N-101711-ga4e518c321-win64-gpl\bin\song database.py
 # ^ 베타 버전(구)
@@ -28,37 +28,37 @@ from moviepy.editor import *
 # ----------
 
 
-def bc1():
-    global bc
-    bc = 1
+def choose_1():
+    global choose_
+    choose_ = 1
     pup()
-def bc2():
-    global bc
-    bc = 2
+def choose_2():
+    global choose_
+    choose_ = 2
     pup()
-def bc3():
-    global bc
-    bc = 3
+def choose_3():
+    global choose_
+    choose_ = 3
     pup()
-def bc4():
-    global bc
-    bc = 4
+def choose_4():
+    global choose_
+    choose_ = 4
     pup()
-def bc5():
-    global bc
-    bc = 5
+def choose_5():
+    global choose_
+    choose_ = 5
     pup()
-def bc6():
-    global bc
-    bc = 6
+def choose_6():
+    global choose_
+    choose_ = 6
     pup()
-def bc7():
-    global bc
-    bc = 7
+def choose_7():
+    global choose_
+    choose_ = 7
     pup()
-def bc8():
-    global bc
-    bc = 8
+def choose_8():
+    global choose_
+    choose_ = 8
     pup()
 
 
@@ -190,10 +190,10 @@ def pup():
 # '정말입니까' 에서 예
 def isyes():
     global nwindow
-    global bc
+    global choose_
     global fnc_list
     nwindow.destroy()
-    fnc_list[bc-1]()
+    fnc_list[choose_-1]()
 
 
 # '정말입니까' 에서 아니오
@@ -233,20 +233,19 @@ def listreset():
 # 태그 작성 - mutagen
 def tagging():
     try:
-
         for i in range(len(name_list)):
-            for i in range(1, 3):
-                path1 = "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % name_list[i]
-                try:
-                    tag1 = EasyID3(path1)
-                except mutagen.id3.ID3NoHeaderError:  # an MP4 tag already exists
-                    tag1 = mutagen.File(path1, easy=True)
-                    tag1.add_tags()
-                if artist_list[i] != None:
-                    tag1['artist'] = str(artist_list[i])
-                if album_list[i] != None:
-                    tag1['album'] = str(album_list[i])
-                tag1.save(path1, v1=i)
+            path1 = "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % name_list[i]
+            try:
+                tag1 = EasyID3(path1)
+            except mutagen.id3.ID3NoHeaderError:  # an MP4 tag already exists
+                tag1 = mutagen.File(path1, easy=True)
+                tag1.add_tags()
+            if artist_list[i] != None:
+                tag1['artist'] = str(artist_list[i])
+            if album_list[i] != None:
+                tag1['album'] = str(album_list[i])
+            tag1.save(path1, v1=1)
+            tag1.save(path1, v1=2)
 
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'tagging completed')
@@ -305,10 +304,12 @@ def downloading():
     global artist_list
     global album_list
     path_dir_mp3 = 'C:/Users/dongi/Desktop/min/mp3'
+    path_dir_mp4 = 'C:/Users/dongi/Desktop/min/mp4'
     path_dir_lyrics = 'C:/Users/dongi/Desktop/min/lyrics'
     mp3_list = os.listdir(path_dir_mp3)
+    mp4_list = os.listdir(path_dir_mp4)
     lyrics_list = os.listdir(path_dir_lyrics)
-    if_again_mp3 = 0
+    if_again_mp3_mp4 = 0
     if_again_lyric = 0
 
     try:
@@ -321,29 +322,28 @@ def downloading():
                 _ = open("C:/Users/dongi/Desktop/min/lyrics/%s.txt" % name_list[i], 'w')
             elif if_again_lyric == 1:
                 if_again_lyric = 0
-                print("\n%s lyric file skipped\n" % name_list[i])
+                print("%s lyric file skipped\n" % name_list[i])
 
         for i in range(len(name_list)):
             for j in range(len(mp3_list)):
                 if name_list[i] == f'{mp3_list[j][:-4]}':  # 중복음악파일확인
-                    if_again_mp3 = 1
+                    if_again_mp3_mp4 = 1
 
-            if if_again_mp3 == 0:
-                download_path = "C:/Users/dongi/Desktop/min/mp3/%s" % name_list[i]
-                url1 = url_list[i]
+            if if_again_mp3_mp4 == 0:
 
-                print("\n%s" % name_list[i])  # checking in console
-                print("%s\n" % url1)
+                print("\n" + name_list[i] + "\n%s\n" % url_list[i])  # checking in console
 
-                yt = YouTube(url1)
-                yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(path_dir_mp3, "C:/Users/dongi/Desktop/min/mp4/%s.mp4" % name_list[i])
+                # mp4 download from youtube
+                yt = YouTube(url_list[i])
+                yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first().download(None, "C:/Users/dongi/Desktop/min/mp4/%s.mp4" % name_list[i])
 
-                vv = VideoFileClip(os.path.join("C:/Users/dongi/Desktop/min/mp4", "C:/Users/dongi/Desktop/min/mp4", "C:/Users/dongi/Desktop/min/mp4/%s.mp4" % name_list[i]))
-                vv.audio.write_audiofile(os.path.join("C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % name_list[i]))
+                # transfer mp4 to mp3
+                vv = VideoFileClip(os.path.join("C:/Users/dongi/Desktop/min/mp4", "C:/Users/dongi/Desktop/min/mp4/%s.mp4" % name_list[i]))
+                vv.audio.write_audiofile(os.path.join("C:/Users/dongi/Desktop/min/mp3", "C:/Users/dongi/Desktop/min/mp3/%s.mp3" % name_list[i]))
 
-            elif if_again_mp3 == 1:
-                if_again_mp3 = 0
-                print("\n%s mp3 file skipped\n" % name_list[i])
+            elif if_again_mp3_mp4 == 1:
+                if_again_mp3_mp4 = 0
+                print("%s mp3 file skipped\n" % name_list[i])
 
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'downloded')
@@ -497,7 +497,7 @@ url_list = []
 name_list = []
 artist_list = []
 album_list = []
-bc = 2
+choose_ = 2
 this_is_dummy = 1
 fnc_list = [rundo, listreset, tagging, downloading, dev, lyricwrite, in_txt, ex_txt]
 
@@ -542,7 +542,6 @@ e2.place(x=75, y=70)
 e3.place(x=75, y=100)
 e4.place(x=75, y=130)
 e5.place(x=75, y=200)
-e5.place(x=75, y=200)
 
 # to line 50 ~
 b001 = Button(window, text="정보 저장", command=save)
@@ -551,16 +550,16 @@ b002 = Button(window, text="리셋", command=reset)
 b001.place(x=60, y=160)
 b002.place(x=150, y=160)
 
-b111 = Button(window, text="1개 취소", command=bc1)
-b112 = Button(window, text="리스트 리셋", command=bc2)
+b111 = Button(window, text="1개 취소", command=choose_1)
+b112 = Button(window, text="리스트 리셋", command=choose_2)
 b113 = Button(window, text="리스트 보기", command=seel)
-b211 = Button(window, text="태그하기", command=bc3)
-b212 = Button(window, text="다운로드", command=bc4)
+b211 = Button(window, text="태그하기", command=choose_3)
+b212 = Button(window, text="다운로드", command=choose_4)
 b213 = Button(window, text="정리(재실행)", command=delx)
-b311 = Button(window, text="dev", command=bc5)
-b312 = Button(window, text="가사태그하기", command=bc6)
-b411 = Button(window, text="불러오기", command=bc7)
-b412 = Button(window, text="내보내기", command=bc8)
+b311 = Button(window, text="dev", command=choose_5)
+b312 = Button(window, text="가사태그하기", command=choose_6)
+b411 = Button(window, text="불러오기", command=choose_7)
+b412 = Button(window, text="내보내기", command=choose_8)
 
 b111.place(x=10, y=230)
 b112.place(x=80, y=230)
