@@ -724,15 +724,45 @@ def main_loop():
     global e4
     global e5
     global is_first
+    global is_loaded_settings
 
-    # GUI 창
+
+    def first_run():
+        global is_first
+        global is_loaded_settings
+
+        if is_first == 1:
+            try:
+                loading = codecs.open('C:/Users/%s/Desktop/min/settings.txt' % getpass.getuser(), 'rb', 'utf-8')
+                settings_list = loading.read().replace('\r', '').split('\n')
+                loading.close()
+                for i in range(len(settings_dict)):
+                    try:
+                        settings_dict[settings_list[i].split('=')[0]] = int(settings_list[i].split('=')[1])
+                    except:
+                        settings_dict[settings_list[i].split('=')[0]] = settings_list[i].split('=')[1]
+
+                is_first = 0
+                is_loaded_settings = 1
+                window.destroy()
+                main_loop()
+
+            except:
+                pass
+            try:
+                in_txt()
+            except:
+                pass
+            is_first = 0
+
+
     window = Tk()
     window.geometry('260x390')
     window.resizable(width=False, height=False)
     window.configure()
+    first_run()
 
 
-    # 체크박스 눌렀을 때 - 크기조정
     def winres():
         if cv1.get() == 0:
             window.geometry('260x390')
@@ -766,7 +796,6 @@ def main_loop():
     e4.place(x=75, y=130)
     e5.place(x=75, y=200)
 
-    # to line 50 ~
     b001 = Button(window, text="정보 저장", command=save)
     b002 = Button(window, text="리셋", command=reset)
 
@@ -799,7 +828,6 @@ def main_loop():
     b411.place(x=10, y=320)
     b412.place(x=80, y=320)
     b413.place(x=170, y=320)
-
 
     cv1 = IntVar()  # 버튼 체크시 1, 비 체크시 0
     cb1 = Checkbutton(window, text="모드 vcl", variable=cv1, command=winres)
@@ -851,26 +879,10 @@ def main_loop():
     b0291.place(x=10, y=600)
     b0292.place(x=100, y=600)
 
-    if is_first == 1:
-        try:
-            loading = codecs.open('C:/Users/%s/Desktop/min/settings.txt' % getpass.getuser(), 'rb', 'utf-8')
-            settings_list = loading.read().replace('\r', '').split('\n')
-            loading.close()
-            for i in range(len(settings_dict)):
-                try:
-                    settings_dict[settings_list[i].split('=')[0]] = int(settings_list[i].split('=')[1])
-                except:
-                    settings_dict[settings_list[i].split('=')[0]] = settings_list[i].split('=')[1]
-
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, 'settings loaded')
-        except:
-            pass
-        try:
-            in_txt()
-        except:
-            pass
-        is_first = 0
+    if is_loaded_settings == 1:
+        e5.delete(0, len(e5.get()))
+        e5.insert(0, 'settings loaded')
+        is_loaded_settings = 0
 
     window.mainloop()
 
@@ -1068,6 +1080,7 @@ name_list = []
 artist_list = []
 album_list = []
 is_first = 1
+is_loaded_settings = 0
 settings_dict = {'path': '', 'iscreatelyric': 0, 'ismp3': 1, 'ismp4': 0, 'isdevmode': 0,
         'hotkeyslot1': '', 'hotkeyslot2': '', 'hotkeyslot3': '', 'hotkeyslot4': '', 'hotkeyslot5': '',
         'hotkeyslot6': '', 'hotkeyslot7': '', 'hotkeyslot8': '', 'hotkeyslot9': '', 'hotkeyslot10': '',
