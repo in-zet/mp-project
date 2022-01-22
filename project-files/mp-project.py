@@ -346,16 +346,16 @@ def settings_open():
 
 
     def apply():
-        settings_dict['path'] = str(e1.get()).replace('\\', '/')
-        settings_dict['iscreatelyric'] = int(e2.get())
-        settings_dict['ismp3'] = int(e3.get())
-        settings_dict['ismp4'] = int(e4.get())
-        settings_dict['isdownloadandtag'] = int(e5.get())
+        settings_dict['path'] = str(ee1.get()).replace('\\', '/')
+        settings_dict['iscreatelyric'] = int(ee2.get())
+        settings_dict['ismp3'] = int(ee3.get())
+        settings_dict['ismp4'] = int(ee4.get())
+        settings_dict['isdownloadandtag'] = int(ee5.get())
         for i in range(len(tge_list)):
             settings_dict['hotkeyslot' + str(int(i)+1)] = tge_list[i].get()
         for i in range(len(tges_list)):
             if int(tges_list[i].get()) == 1 or 2 or 3 or 4:
-                settings_dict['hotkeyslotwhere' + str(int(i)+1)] = tges_list[i].get()
+                settings_dict['hotkeyslotwhere' + str(int(i)+1)] = int(tges_list[i].get())
 
         setting_window.destroy()
 
@@ -373,26 +373,26 @@ def settings_open():
     l1.place(x=15, y=10)
     l2.place(x=10, y=110)
 
-    e1 = Entry(setting_window)
-    e1.place(x=50, y=110)
+    ee1 = Entry(setting_window)
+    ee1.place(x=50, y=110)
 
-    e2 = IntVar()
-    ev2 = Checkbutton(setting_window, text="create lyric file", variable=e2)
+    ee2 = IntVar()
+    ev2 = Checkbutton(setting_window, text="create lyric file", variable=ee2)
     ev2.pack()
     ev2.place(x=20, y=130)
 
-    e3 = IntVar()
-    ev3 = Checkbutton(setting_window, text="create mp3 file", variable=e3)
+    ee3 = IntVar()
+    ev3 = Checkbutton(setting_window, text="create mp3 file", variable=ee3)
     ev3.pack()
     ev3.place(x=20, y=150)
 
-    e4 = IntVar()
-    ev4 = Checkbutton(setting_window, text="create mp4 file", variable=e4)
+    ee4 = IntVar()
+    ev4 = Checkbutton(setting_window, text="create mp4 file", variable=ee4)
     ev4.pack()
     ev4.place(x=20, y=170)
 
-    e5 = IntVar()
-    ev5 = Checkbutton(setting_window, text="tag immediately", variable=e5)
+    ee5 = IntVar()
+    ev5 = Checkbutton(setting_window, text="tag immediately", variable=ee5)
     ev5.pack()
     ev5.place(x=20, y=190)
 
@@ -572,7 +572,7 @@ def settings_open():
     tges_list = [tges1, tges2, tges3, tges4, tges5, tges6, tges7, tges8, tges9, tges10, tges11, tges12, tges13, tges14, tges15,
         tges16, tges17, tges18, tges19, tges20]
 
-    e1.insert(0, settings_dict['path'])
+    ee1.insert(0, settings_dict['path'])
     if settings_dict['iscreatelyric'] == 1:
         ev2.toggle()
     if settings_dict['ismp3'] == 1:
