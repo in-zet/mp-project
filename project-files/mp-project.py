@@ -66,6 +66,7 @@ def downloading():
     if_again_mp4 = 0
     if_again_lyric = 0
 
+
     try:
         for i in range(len(name_list)):
 
@@ -115,9 +116,13 @@ def downloading():
             e5.delete(0, len(e5.get()))
             e5.insert(0, ' NOW downloding...')
 
+        if settings_dict['isdownloadandtag'] == 1:
+            tagging()
+
         e5.delete(0, len(e5.get()))
         e5.insert(0, 'downloded')
         print("\nFIN\n")
+
 
     except Exception as e:
         e5.delete(0, len(e5.get()))
@@ -345,7 +350,7 @@ def settings_open():
         settings_dict['iscreatelyric'] = int(e2.get())
         settings_dict['ismp3'] = int(e3.get())
         settings_dict['ismp4'] = int(e4.get())
-        settings_dict['isdevmode'] = int(e5.get())
+        settings_dict['isdownloadandtag'] = int(e5.get())
         for i in range(len(tge_list)):
             settings_dict['hotkeyslot' + str(int(i)+1)] = tge_list[i].get()
         for i in range(len(tges_list)):
@@ -387,7 +392,7 @@ def settings_open():
     ev4.place(x=20, y=170)
 
     e5 = IntVar()
-    ev5 = Checkbutton(setting_window, text="devmode", variable=e5)
+    ev5 = Checkbutton(setting_window, text="tag immediately", variable=e5)
     ev5.pack()
     ev5.place(x=20, y=190)
 
@@ -574,7 +579,7 @@ def settings_open():
         ev3.toggle()
     if settings_dict['ismp4'] == 1:
         ev4.toggle()
-    if settings_dict['isdevmode'] == 1:
+    if settings_dict['isdownloadandtag'] == 1:
         ev5.toggle()
     for i in range(len(tge_list)):
         tge_list[i].insert(0, settings_dict['hotkeyslot' + str(int(i) + 1)])
@@ -1093,7 +1098,7 @@ artist_list = []
 album_list = []
 is_first = 1
 is_loaded_settings = 0
-settings_dict = {'path': '', 'iscreatelyric': 0, 'ismp3': 1, 'ismp4': 0, 'isdevmode': 0,
+settings_dict = {'path': '', 'iscreatelyric': 0, 'ismp3': 1, 'ismp4': 0, 'isdownloadandtag': 0,
         'hotkeyslot1': '', 'hotkeyslot2': '', 'hotkeyslot3': '', 'hotkeyslot4': '', 'hotkeyslot5': '',
         'hotkeyslot6': '', 'hotkeyslot7': '', 'hotkeyslot8': '', 'hotkeyslot9': '', 'hotkeyslot10': '',
         'hotkeyslot11': '', 'hotkeyslot12': '', 'hotkeyslot13': '', 'hotkeyslot14': '', 'hotkeyslot15': '',
