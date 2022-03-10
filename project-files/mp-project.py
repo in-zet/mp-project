@@ -18,7 +18,8 @@ import getpass
 # 21.8.13 /v0.11/ : 프로젝트 재가동중 - 정상작동 확인
 # 21.10.22 /v0.2/ : youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입
 # 21.11.22 /v0.21/ : Github에 업로드
-# 21.12.04 /v0.22/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경, eyed3 사용 중지 및 제거
+# 21.12.04 /v0.3/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경, eyed3 사용 중지 및 제거
+# 22.03.11 /v0.31/ : pytube 버전 업 (0.11.2 -> 0.12)
 # ----------
 # D:\python coding\ffmpeg-N-101711-ga4e518c321-win64-gpl\bin\song database.py
 # ^ 베타 버전(구)
@@ -68,6 +69,7 @@ def downloading():
 
 
     try:
+    #if True:
         for i in range(len(name_list)):
 
             for j in range(len(lyrics_list)):
