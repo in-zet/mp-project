@@ -1,1118 +1,1154 @@
 # -*- coding: utf-8 -*-
-import os
-import glob
-from tkinter import *
-import mutagen
-from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, TIT2
-from mutagen.mp4 import MP4Tags
-from mutagen._file import *
 import codecs
+import json
+import os
+import random
+import shlex
+import subprocess
+from functools import partial
+from tkinter import *
+from tkinter import ttk
+from tkinter.filedialog import askdirectory
+
+import clipboard
+from mutagen.easyid3 import EasyID3
+from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, COMM, TCOM, TCON, TDRC, TRCK
+from niconico import NicoNico
 from pytube import YouTube
-from moviepy.editor import *
-import getpass
 
-
-# ----------
-# 21.x.x /v0.1/ : 프로젝트 폐기 - 작동불능
-# 21.8.13 /v0.11/ : 프로젝트 재가동중 - 정상작동 확인
-# 21.10.22 /v0.2/ : youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입
-# 21.11.22 /v0.21/ : Github에 업로드
-# 21.12.04 /v0.3/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경, eyed3 사용 중지 및 제거
-# 22.03.11 /v0.31/ : pytube 버전 업 (0.11.2 -> 0.12)
-# ----------
-# D:\python coding\ffmpeg-N-101711-ga4e518c321-win64-gpl\bin\song database.py
-# ^ 베타 버전(구)
-# ----------
+###################################################
+# 21.03.25 /v0.0.1/ : 프로젝트 시작
+# 21.03.26 /v0.0.2/ : 프로젝트 폐기 - 작동불능
+# 21.08.13 /v0.0.3/ : 프로젝트 재가동중 - 정상작동 확인
+#
+# 21.10.22 /v0.1.0/ : youtube-dll 의 속도저하 문제 해결 위한 pytube 모듈 도입  // 백업
+# 21.11.22 /v0.1.1/ : Github에 업로드
+#
+# 21.12.04 /v0.2.0/ : 코드 최적화, mp4 폴더 분리, 변수 이름 변경, eyed3 사용 중지 및 제거
+# 22.03.11 /v0.2.1/ : pytube 버전 업 (0.11.2 -> 0.12)
+# 22.07.26 /v0.2.2/ : mp4 삭제 안되는 오류 해결 - 왜 되는지 모름 - 안됨
+#
+# 22.07.27 /v0.3.0/ : 다른 환경에서도 작동 가능성 확보 // 백업
+#
+# 22.08.01 /v0.4.0/ : 니코동 지원, %s 대신 f'{}' 사용 시작
+# 22.08.03 /v0.4.1/ : mp4 삭제 안되는 오류 해결 - time.sleep(0.3)으로 해결(?) // 백업
+#
+# 22.08.04 /v0.5.0/ : 클립보드에서 붙여넣기, 줄 단위 삭제 버튼 추가
+#
+# 22.08.05 /v0.6.0/ : moviepy 버리고 ffmpeg로 갈아탐, 음질 및 화질 개선 - ffmpeg가 안꺼지는 문제 재발 - 해결(communicate())
+# 22.10.13 /v0.6.1/ : 텅 빈 파일 인식으로부터 비롯된 버그 제거, \n이 같이 입력되지 않게 처리 // 백업
+# 22.10.14 /v0.6.2/ : 입력 불가능한 글자를 입력하면 자동으로 전각으로 바뀌게 함
+# 23.01.04 /v0.6.3/ : 단축키 사용 시 앞에 문자열이 삽입되는 버그 제거 // 백업
+#
+# 23.01.13 /v1.0.0/ : UI 대폭 개선, 코드 리포매팅(Black), 기능 분리 -> 메뉴화, 태깅 로직 개선, 태그 종류 추가, 리스트 조작 추가,
+#                     mp3 변환 로직 수정, 경로 설정 개선, 자료 저장 개선 -> json 도입, 불필요 기능 삭제, 버그 수정, 핫키 분리,
+#                     핫키 무제한화
+# 23.01.14 /v1.0.1/ : 리포매팅(yield문 제거 -> partial() 사용)
+#
+###################################################
 # 중요 : python 파일이 있는 곳에 ffmpeg.exe 와 ffprobe.exe가 있어야지만 정상작동
-# ----------
-
-# =================================================다운로드==================================================
-# =================================================다운로드==================================================
-# =================================================다운로드==================================================
+###################################################
 
 
-def downloading():
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    global settings_dict
-    global e5
+########################################################################################################################
+#####################################################                ###################################################
+#####################################################    기초 셋팅    ####################################################
+#####################################################                ###################################################
+########################################################################################################################
 
 
-    def download_mp4():  # mp4 download from youtube
-        yt = YouTube(url_list[i])
-        yt.streams.filter(progressive=True, file_extension='mp4').order_by(
-            'resolution').desc().first().download(None, settings_dict['path'] + "/min/mp4/%s.mp4" % name_list[i])
-        #s.system('taskkill /f /im ffmpeg-win64-v4.2.2.exe')
+current_version = (1, 0, 0)
+list_mode = 0
+selected_index = -1
+
+path = os.getcwd().replace("\\", "/")
+settings = {
+    "ismp3": 1,
+    "ismp4": 0,
+    "playlistmode": 0,
+    "splitmode": 0,
+    "tags": ["artist", "album", "composer"],
+    "hotkeys": [],
+}
+properties = []
+property_str_list = [
+    "title",
+    "artist",
+    "band",
+    "album",
+    "comment",
+    "year",
+    "track",
+    "genre",
+    "composer",
+    "timing",
+]
+# url, filename, title, artist, band, album, comment, year: int, track: int, genre, composer, timing
 
 
-    def transfer_mp3():  # transfer mp4 to mp3
-        vv = VideoFileClip(os.path.join(settings_dict['path'] + "/min/mp4",
-            settings_dict['path'] + "/min/mp4/%s.mp4" % name_list[i]))
-        vv.audio.write_audiofile(os.path.join(settings_dict['path'] + "/min/mp3",
-            settings_dict['path'] + "/min/mp3/%s.mp3" % name_list[i]))
-        os.system('taskkill /f /im ffmpeg-win64-v4.2.2.exe')
+def enformat(content: str) -> str:
+    if content == "":
+        return f"__No_Title_{random.randint(1000, 9999)}__"
+    return (
+        content.replace(" ", "__sb__")
+        .replace(".", "__pe__")
+        .replace("'", "__qu__")
+        .replace("\n", "")
+    )
 
 
-    def delete_mp4(name):
-        os.remove(settings_dict['path'] + "/min/mp4/%s.mp4" % name)
+def deformat(content: str) -> str:
+    return content.replace("__sb__", " ").replace("__pe__", ".").replace("__qu__", "'")
 
 
-    mp3_list = os.listdir(settings_dict['path'] + '/min/mp3')
-    mp4_list = os.listdir(settings_dict['path'] + '/min/mp4')
-    lyrics_list = os.listdir(settings_dict['path'] + '/min/lyrics')
-    if_again_mp3 = 0
-    if_again_mp4 = 0
-    if_again_lyric = 0
+def msg(content: str, index: int = 0) -> None:
+    ei.delete(index, len(ei.get()))
+    ei.insert(index, content)
 
 
-    try:
-    #if True:
-        for i in range(len(name_list)):
-
-            for j in range(len(lyrics_list)):
-                if name_list[i] == f'{lyrics_list[j][:-4]}':  # 중복가사파일확인
-                    if_again_lyric = 1
-
-            for j in range(len(mp3_list)):
-                if name_list[i] == f'{mp3_list[j][:-4]}':  # 중복음악파일확인
-                    if_again_mp3 = 1
-
-            for j in range(len(mp4_list)):
-                if name_list[i] == f'{mp4_list[j][:-4]}':  # 중복영상파일확인
-                    if_again_mp4 = 1
-
-            if settings_dict['iscreatelyric'] == 1:  # 가사파일생성
-                if if_again_lyric == 0:
-                    _ = open(settings_dict['path'] + "/min/lyrics/%s.txt" % name_list[i], 'w')
-                elif if_again_lyric == 1:
-                    if_again_lyric = 0
-                    print("%s lyric file skipped\n" % name_list[i])
-
-            if settings_dict['ismp4'] == 1 or settings_dict['ismp3'] == 1:
-
-                if if_again_mp4 == 0:  # mp4 not exist
-                    print("\n" + name_list[i] + "\n%s\n" % url_list[i])  # checking in console
-
-                    download_mp4()
-
-                elif if_again_mp4 == 1:  # mp4 exist
-                    if_again_mp4 = 0
-                    print("%s mp4 file skipped\n" % name_list[i])
-
-                if settings_dict['ismp3'] == 1:
-                    if if_again_mp3 == 0:  # mp3 not exist
-
-                        transfer_mp3()
-
-                    elif if_again_mp3 == 1:  # mp3 exist
-                        if_again_mp3 = 0
-                        print("%s mp3 file skipped\n" % name_list[i])
-
-                if settings_dict['ismp4'] == 0:
-
-                    delete_mp4(name_list[i])
-
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, ' NOW downloding...')
-
-        if settings_dict['isdownloadandtag'] == 1:
-            tagging()
-
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'downloded')
-        print("\nFIN\n")
+def window_set(
+    window: Tk or Toplevel, geomatry: str, title: str, resizable: bool = False
+) -> None:
+    window.geometry(geomatry)
+    window.title(title)
+    window.resizable(resizable, resizable)
 
 
-    except Exception as e:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'error: ' + str(e))
+def mouse_track(window: Tk or Toplevel) -> None:
+    window.bind("<Motion>", lambda e: print("(%d, %d)" % (e.x, e.y)))
 
 
-def mp4_all_delete():
-    global name_list
-    global settings_dict
-    global e5
+########################################################################################################################
+######################################################               ###################################################
+######################################################    다운로드    ###################################################
+######################################################               ###################################################
+########################################################################################################################
+
+
+def downloading():  # mp3 / mp4 파일 다운로드
+    global properties
+    client = NicoNico()
+    mp3_list = os.listdir(f"{path}/min/mp3")
+    mp4_list = os.listdir(f"{path}/min/mp4")
 
     try:
-        for i in range(len(name_list)):
-            os.remove(settings_dict['path'] + "/min/mp4/%s.mp4" % name_list[i])
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'MP4 file deleted')
+        for i in properties:  # 각각의 곡 마다 실행
+            fname = enformat(i["filename"])
+            print(f"\n{properties.index(i) + 1} / {len(properties)}")
+
+            if "youtube" in i["url"]:  # 유튜브에서 다운로드
+                print(f'\n{i["filename"]}\n{i["url"]}\n')
+
+                yt = YouTube(i["url"])
+
+                if (
+                    settings["ismp4"]
+                    and f'{i["filename"]}.mp4' not in mp4_list
+                    and f"{fname}.mp4" not in mp4_list
+                ):
+                    yt.streams.filter(only_video=True).order_by(
+                        "resolution"
+                    ).desc().first().download(None, f"{path}/min/mp4/{fname}_video.mp4")
+                    yt.streams.filter(only_audio=True).order_by(
+                        "abr"
+                    ).desc().first().download(None, f"{path}/min/mp4/{fname}_audio.mp4")
+
+                    command = f"ffmpeg -y -i {path}/min/mp4/{fname}_video.mp4 -i {path}/min/mp4/{fname}_audio.mp4 {path}/min/mp4/{fname}.mp4"
+                    p = subprocess.Popen(
+                        shlex.split(command),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    p.communicate()
+
+                    print(f'{i["filename"]} video downloaded')
+
+                    if (
+                        settings["ismp3"]
+                        and f'{i["filename"]}.mp3' not in mp3_list
+                        and f"{fname}.mp3" not in mp3_list
+                    ):
+                        command = f"ffmpeg -i {path}/min/mp4/{fname}_audio.mp4 -y {path}/min/mp3/{fname}.mp3"
+                        p = subprocess.Popen(
+                            shlex.split(command),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                        p.communicate()
+
+                        print(f'{i["filename"]} audio downloaded')
+
+                elif (
+                    settings["ismp3"]
+                    and f'{i["filename"]}.mp3' not in mp3_list
+                    and f"{fname}.mp3" not in mp3_list
+                ):
+                    yt.streams.filter(only_audio=True).order_by(
+                        "abr"
+                    ).desc().first().download(None, f"{path}/min/mp4/{fname}_audio.mp4")
+
+                    command = f"ffmpeg -i {path}/min/mp4/{fname}_audio.mp4 -y {path}/min/mp3/{fname}.mp3"
+                    p = subprocess.Popen(
+                        shlex.split(command),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    p.communicate()
+
+                    print(f'{i["filename"]} audio downloaded')
+
+            elif "nicovideo" in i["url"]:  # 니코동에서 다운로드
+                print(f'\n{i["filename"]}\n{i["url"]}\n')
+
+                if (settings["ismp4"] and f'{i["filename"]}.mp4' not in mp4_list) or (
+                    settings["ismp3"] and f'{i["filename"]}.mp3' not in mp3_list
+                ):
+                    with client.video.get_video(i["url"]) as ni:
+                        ni.download(f"{path}/min/mp4/{fname}.mp4")
+
+                    print(f'{i["filename"]} video downloaded')
+
+                    if settings["ismp3"] and f'{i["filename"]}.mp3' not in mp3_list:
+                        command = f"ffmpeg -i {path}/min/mp4/{fname}.mp4 -y {path}/min/mp3/{fname}.mp3"
+                        p = subprocess.Popen(
+                            shlex.split(command),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                        p.communicate()
+
+                        print(f'{i["filename"]} audio downloaded')
+
+            else:  # 유튜브, 니코동 둘 다 아닐 때
+                print(f'{i["url"]} is a wrong path')
+
+            if "timing" in list(i.keys()):  # 타이밍 값이 있어서 자르게 될 경우
+                times = [j.split(":") for j in i["timing"].split("-")]
+                if len(times) == 1:
+                    if i["timing"][0] == "-":
+                        times.insert(0, ["0", "00", "00"])
+
+                for j in times:
+                    while len(j) < 3:
+                        j.insert(0, "0")
+                    for k in range(1, 3):
+                        if len(j[k]) == 1:
+                            j[k] = "0" + str(j[k])
+
+                if settings["ismp3"] == 1:
+                    os.rename(
+                        f"{path}/min/mp3/{fname}.mp3",
+                        f"{path}/min/mp3/{fname}_orginal.mp3",
+                    )
+
+                    try:
+                        command = f"ffmpeg -i {path}/min/mp3/{fname}_orginal.mp3 -ss {times[0][0]}:{times[0][1]}:{times[0][2]} -to {times[1][0]}:{times[1][1]}:{times[1][2]} -c copy {path}/min/mp3/{fname}.mp3"
+                        p = subprocess.Popen(
+                            shlex.split(command),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                        p.communicate()
+
+                    except Exception as e:
+                        print(f"\nerror: {e}\n")
+                        p.communicate()
+                        if f"{path}/min/mp3/{fname}.mp3" in os.listdir(
+                            f"{path}/min/mp3"
+                        ):
+                            os.remove(f"{path}/min/mp3/{fname}.mp3")
+                        os.rename(
+                            f"{path}/min/mp3/{fname}_orginal.mp3",
+                            f"{path}/min/mp3/{fname}.mp3",
+                        )
+
+                if settings["ismp4"] == 1:
+                    os.rename(
+                        f"{path}/min/mp4/{fname}.mp4",
+                        f"{path}/min/mp4/{fname}_orginal.mp4",
+                    )
+
+                    try:
+                        command = f"ffmpeg -i {path}/min/mp4/{fname}_orginal.mp4 -ss {times[0][0]}:{times[0][1]}:{times[0][2]} -to {times[1][0]}:{times[1][1]}:{times[1][2]} {path}/min/mp4/{fname}.mp4"
+                        p = subprocess.Popen(
+                            shlex.split(command),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                        p.communicate()
+
+                    except Exception as e:
+                        print(f"\nerror: {e}\n")
+                        p.communicate()
+                        if f"{path}/min/mp4/{fname}.mp4" in os.listdir(
+                            f"{path}/min/mp4"
+                        ):
+                            os.remove(f"{path}/min/mp4/{fname}.mp4")
+                        os.rename(
+                            f"{path}/min/mp4/{fname}_orginal.mp4",
+                            f"{path}/min/mp4/{fname}.mp4",
+                        )
+
+        for i in os.listdir(f"{path}/min/mp4"):  # 사용된 비디오만 / 오디오만 / 자르지 않은 파일 삭제
+            if "_audio" in i or "_video" in i or "_orginal" in i:
+                os.remove(f"{path}/min/mp4/{i}")
+        for i in os.listdir(f"{path}/min/mp3"):
+            if "_orginal" in i:
+                os.remove(f"{path}/min/mp3/{i}")
+
+        for i in os.listdir(f"{path}/min/mp4"):  # 공백, 온점 되돌리기
+            os.rename(f"{path}/min/mp4/{i}", f"{path}/min/mp4/{deformat(i)}")
+        for i in os.listdir(f"{path}/min/mp3"):
+            os.rename(f"{path}/min/mp3/{i}", f"{path}/min/mp3/{deformat(i)}")
+
+        if settings["ismp4"] == 0:  # mp4 파일 미필요
+            for i in properties:  # mp4 파일 삭제
+                try:
+                    os.remove(f'{path}/min/mp4/{i["filename"]}.mp4')
+                except:
+                    pass
+
+        tagging()
+
+        msg("Completed")
+        print("\nCompleted\n")
+
     except Exception as e:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'error: ' + str(e))
+        print(f"\nerror: {e}\n")
+        msg(f"error: {e}")
 
 
-# =================================================태그=================================================
-# =================================================태그=================================================
-# =================================================태그=================================================
+def mp4_all_delete():  # mp3 / mp4 파일 일괄 삭제
+    try:
+        for i in os.listdir(f"{path}/min/mp4"):
+            os.remove(f"{path}/min/mp4/{i}")
+        for i in os.listdir(f"{path}/min/mp3"):
+            os.remove(f"{path}/min/mp3/{i}")
+        msg("MP4/MP3 file deleted")
+
+    except Exception as e:
+        print(f"\nerror: {e}\n")
+        msg(f"error: {e}")
 
 
-def tagging():
-    global name_list
-    global artist_list
-    global album_list
-    global setting_dict
-    global e5
+########################################################################################################################
+######################################################           #######################################################
+######################################################    태그    #######################################################
+######################################################           #######################################################
+########################################################################################################################
+
+
+def tagging():  # mp3 파일 태그
+    global settings
 
     try:
-        for i in range(len(name_list)):
-            try:
-                tag1 = EasyID3(settings_dict['path'] + "/min/mp3/%s.mp3" % name_list[i])
-            except mutagen.id3.ID3NoHeaderError:  # an MP4 tag already exists
-                tag1 = mutagen.File(settings_dict['path'] + "/min/mp3/%s.mp3" % name_list[i], easy=True)
-                tag1.add_tags()
-            if artist_list[i] != None:
-                tag1['artist'] = str(artist_list[i])
-            if album_list[i] != None:
-                tag1['album'] = str(album_list[i])
-            tag1.save(settings_dict['path'] + "/min/mp3/%s.mp3" % name_list[i], v1=1)
-            tag1.save(settings_dict['path'] + "/min/mp3/%s.mp3" % name_list[i], v1=2)
+        for i in properties:
+            if f'{i["filename"]}.mp3' in os.listdir(f"{path}/min/mp3"):
+                tags = ID3(f'{path}/min/mp3/{i["filename"]}.mp3')
+                tags.delete()
+                tags = ID3()
 
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'tagging completed')
+                if "title" in i.keys():
+                    tags["TIT2"] = TIT2(encoding=3, text=i["title"])
+
+                if "album" in i.keys():
+                    tags["TALB"] = TALB(encoding=3, text=i["album"])
+
+                if "band" in i.keys():
+                    tags["TPE2"] = TPE2(encoding=3, text=i["band"])
+
+                if "comment" in i.keys():
+                    tags["COMM"] = COMM(encoding=3, text=i["comment"])
+                    # tags["COMM"] = COMM(encoding=3, lang=u'eng', desc='desc', text=i["title"])
+
+                if "artist" in i.keys():
+                    tags["TPE1"] = TPE1(encoding=3, text=i["artist"])
+
+                if "composer" in i.keys():
+                    tags["TCOM"] = TCOM(encoding=3, text=i["composer"])
+
+                if "genre" in i.keys():
+                    tags["TCON"] = TCON(encoding=3, text=i["genre"])
+
+                if "year" in i.keys():
+                    tags["TDRC"] = TDRC(encoding=3, text=i["year"])
+
+                if "track" in i.keys():
+                    tags["TRCK"] = TRCK(encoding=3, text=i["track"])
+
+                tags.save(f'{path}/min/mp3/{i["filename"]}.mp3')
+
+        msg("tagging completed")
 
     except Exception as e:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'error: ' + str(e))
+        print(f"\nerror: {e}\n")
+        msg(f"error: {e}")
 
 
-def lyric_tagging():
-    global setting_dict
-    global e5
+def lyric_tagging():  # mp3 파일 가사 태그
+    global settings
 
-    mp3_list = os.listdir(settings_dict['path'] + '/min/mp3')
-    lyrics_list = os.listdir(settings_dict['path'] + '/min/lyrics')
-    rightnum = 0
+    mp3_list = os.listdir(f"{path}/min/mp3")
+    lyrics_list = os.listdir(f"{path}/min/lyrics")
 
-    if len(mp3_list) <= len(lyrics_list):
+    if len(mp3_list) <= len(lyrics_list):  # mp3 파일과 가사 파일의 수가 정상
         for i in range(len(mp3_list)):
             for j in range(len(lyrics_list)):
-                if f'{mp3_list[i][:-4]}' == f'{lyrics_list[j][:-4]}':
-                    rightnum = j
-            tag1 = EasyID3(settings_dict['path'] + '/min/mp3/' + mp3_list[i])
-            ln1 = open(settings_dict['path'] + '/min/lyrics/' + lyrics_list[rightnum], 'r')
-            lyr1 = ln1.read()
-            ln1.close()
-            tag1['lyricist'] = str(lyr1)
-            tag1.save(settings_dict['path'] + '/min/mp3/' + mp3_list[i], v1=2)
+                if f"{mp3_list[i][:-4]}" == f"{lyrics_list[j][:-4]}":
+                    tag1 = EasyID3(f"{path}/min/mp3/{mp3_list[i]}")
+                    ln1 = open(f"{path}/min/lyrics/{lyrics_list[j]}", "r")
+                    lyr1 = ln1.read()
+                    ln1.close()
+                    tag1["lyricist"] = str(lyr1)
+                    tag1.save(f"{path}/min/mp3/{mp3_list[i]}", v1=2)
 
-            e5.delete(0, len(e5.get()))
-            e5.insert(0, 'lyric completed')
+            msg("lyric completed")
 
     else:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'the number of mp3s and lyrics are not same')
+        msg("the number of mp3s and lyrics are not same")
 
 
-# =================================================불러오기//내보내기=================================================
-# =================================================불러오기//내보내기=================================================
-# =================================================불러오기//내보내기=================================================
+########################################################################################################################
+#################################################                      #################################################
+#################################################    불러오기/내보내기    #################################################
+#################################################                      #################################################
+########################################################################################################################
 
 
-def in_txt():
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    global settings_dict
-    global e5
+def in_txt():  # 작업 리스트 불러오기
+    global properties
+    try:
+        with open(f"{path}/min/savelist.json") as f:
+            properties = json.load(f)
+        msg("List Imported")
 
-    url_list = []
-    name_list = []
-    artist_list = []
-    album_list = []
-    loading = codecs.open('%s/min/save/_save_url.txt' % settings_dict['path'], 'rb', 'utf-8')
-    url_list = loading.read().replace('\r', '').split('\n')
-    loading.close()
-    loading = codecs.open('%s/min/save/_save_name.txt' % settings_dict['path'], 'rb', 'utf-8')
-    name_list = loading.read().replace('\r', '').split('\n')
-    loading.close()
-    loading = codecs.open('%s/min/save/_save_artist.txt' % settings_dict['path'], 'rb', 'utf-8')
-    artist_list = loading.read().replace('\r', '').split('\n')
-    loading.close()
-    loading = codecs.open('%s/min/save/_save_album.txt' % settings_dict['path'], 'rb', 'utf-8')
-    album_list = loading.read().replace('\r', '').split('\n')
-    loading.close()
-    if len(url_list) != len(name_list) or len(name_list) != len(artist_list) or len(artist_list) != len(
-            album_list) or len(url_list) != len(album_list):
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'error : different lines')
-        url_list = []
-        name_list = []
-        artist_list = []
-        album_list = []
-    else:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'import completed')
+    except Exception as e:
+        print(f"\nerror: {e}\n")
 
 
-def ex_txt():
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    global settings_dict
-    global e5
+def ex_txt():  # 작업 리스트 내보내기
+    try:
+        with open(f"{path}/min/savelist.json", "w") as f:
+            json.dump(properties, f, indent=2)
+        msg("List Exported")
 
-    save_data = ""
-    saving = codecs.open('%s/min/save/_save_url.txt' % settings_dict['path'], 'w', 'utf-8')
-    for i in range(len(name_list)):
-        save_data += url_list[i] + "\n"
-    saving.write(save_data[:-1])
-    saving.close()
-    save_data = ""
-    saving = codecs.open('%s/min/save/_save_name.txt' % settings_dict['path'], 'w', 'utf-8')
-    for i in range(len(name_list)):
-        save_data += name_list[i] + "\n"
-    saving.write(save_data[:-1])
-    saving.close()
-    save_data = ""
-    saving = codecs.open('%s/min/save/_save_artist.txt' % settings_dict['path'], 'w', 'utf-8')
-    for i in range(len(name_list)):
-        save_data += artist_list[i] + "\n"
-    saving.write(save_data[:-1])
-    saving.close()
-    save_data = ""
-    saving = codecs.open('%s/min/save/_save_album.txt' % settings_dict['path'], 'w', 'utf-8')
-    for i in range(len(name_list)):
-        save_data += album_list[i] + "\n"
-    saving.write(save_data[:-1])
-    saving.close()
-    e5.delete(0, len(e5.get()))
-    e5.insert(0, 'export completed')
+    except Exception as e:
+        print(f"\nerror: {e}\n")
 
 
-def in_settings():
-    global settings_dict
-    global e5
+def in_settings():  # 설정 불러오기
+    global settings
+    try:
+        with open(f"{path}/min/settings.json") as f:
+            settings = json.load(f)
+
+    except Exception as e:
+        print(f"\nerror: {e}\n")
+
+
+def ex_settings():  # 설정 내보내기
+    try:
+        with open(f"{path}/min/settings.json", "w") as f:
+            json.dump(settings, f, indent=2)
+
+    except Exception as e:
+        print(f"\nerror: {e}\n")
+
+
+########################################################################################################################
+######################################################           #######################################################
+######################################################    설정    #######################################################
+######################################################           #######################################################
+########################################################################################################################
+
+
+def settings_open():  # 설정 창
+    global settings, path
 
     try:
-        loading = codecs.open('%s/min/settings.txt' % settings_dict['path'], 'rb', 'utf-8')
-        settings_list = loading.read().replace('\r', '').split('\n')
-        loading.close()
-        for i in range(len(settings_dict)):
-            try:
-                settings_dict[settings_list[i].split('=')[0]] = int(settings_list[i].split('=')[1])
-            except:
-                settings_dict[settings_list[i].split('=')[0]] = settings_list[i].split('=')[1]
-
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'settings loaded')
+        window.destroy()  # 메인루프 창 파괴
     except:
-        ex_settings()
-
-
-def ex_settings():
-    global settings_dict
-    global e5
-
-    save_data = ""
-    saving = codecs.open('%s/min/settings.txt' % settings_dict['path'], 'w', 'utf-8')
-    for i in range(len(settings_dict)):
-        save_data += str(list(settings_dict.keys())[i]) + "=" + str(list(settings_dict.values())[i]) + "\n"
-    saving.write(save_data[:-1])
-    saving.close()
-
-    e5.delete(0, len(e5.get()))
-    e5.insert(0, 'settings exported')
-
-
-# =================================================설정=================================================
-# =================================================설정=================================================
-# =================================================설정=================================================
-
-
-def settings_open():
-    global settings_dict
-    global window
-
-    window.destroy()
+        pass
 
     setting_window = Tk()
-    setting_window.geometry('250x300')
-    setting_window.resizable(width=False, height=False)
-    setting_window.configure()
+    window_set(setting_window, "250x260", "설정")
 
-
-    def winres1():
-        if cv11.get() == 0:
-            setting_window.geometry('250x300')
-            setting_window.resizable(width=False, height=False)
-        elif cv11.get() == 1:
-            setting_window.geometry('420x900')
-            setting_window.resizable(width=True, height=True)
-
-
-    def apply():
-        settings_dict['path'] = str(ee1.get()).replace('\\', '/')
-        settings_dict['iscreatelyric'] = int(ee2.get())
-        settings_dict['ismp3'] = int(ee3.get())
-        settings_dict['ismp4'] = int(ee4.get())
-        settings_dict['isdownloadandtag'] = int(ee5.get())
-        for i in range(len(tge_list)):
-            settings_dict['hotkeyslot' + str(int(i)+1)] = tge_list[i].get()
-        for i in range(len(tges_list)):
-            if int(tges_list[i].get()) == 1 or 2 or 3 or 4:
-                settings_dict['hotkeyslotwhere' + str(int(i)+1)] = int(tges_list[i].get())
+    def apply():  # 확정 시 - 쓰여진 정보 저장
+        global path
+        path = str(ee1.get()).replace("\\", "/")
+        settings["ismp3"] = int(ee3.get())
+        settings["ismp4"] = int(ee4.get())
+        settings["playlistmode"] = int(ee5.get())
+        settings["splitmode"] = int(ee6.get())
 
         setting_window.destroy()
+        main_loop()  # 다시 메인루프로
 
-        main_loop()
+    Label(setting_window, text="경로:").place(x=5, y=5)
 
-
-    cv11 = IntVar()  # 버튼 체크시 1, 비 체크시 0
-    cb11 = Checkbutton(setting_window, text="Hotkey EDIT OPEN", variable=cv11, command=winres1)
-    cb11.pack()
-    cb11.place(x=10, y=220)
-
-    l1 = Label(setting_window, text='settings\n주의:경로에 있는 역슬래시\n슬래시로 다 바꾸고\n마지막 슬래시 빼고\nmin전의 폴더주소 입력', fg='red', font='helvetica 13 bold')
-    l2 = Label(setting_window, text='path: ')
-
-    l1.place(x=15, y=10)
-    l2.place(x=10, y=110)
-
-    ee1 = Entry(setting_window)
-    ee1.place(x=50, y=110)
-
-    ee2 = IntVar()
-    ev2 = Checkbutton(setting_window, text="create lyric file", variable=ee2)
-    ev2.pack()
-    ev2.place(x=20, y=130)
+    ee1 = ttk.Entry(setting_window, width=28)
+    ee1.place(x=40, y=5)
 
     ee3 = IntVar()
-    ev3 = Checkbutton(setting_window, text="create mp3 file", variable=ee3)
-    ev3.pack()
-    ev3.place(x=20, y=150)
+    ev3 = ttk.Checkbutton(setting_window, text="음원", variable=ee3)
+    ev3.place(x=130, y=60)
 
     ee4 = IntVar()
-    ev4 = Checkbutton(setting_window, text="create mp4 file", variable=ee4)
-    ev4.pack()
-    ev4.place(x=20, y=170)
+    ev4 = ttk.Checkbutton(setting_window, text="영상", variable=ee4)
+    ev4.place(x=130, y=80)
+
+    def ev5_rev():
+        if ee5.get() and ee6.get():
+            ev6.invoke()
+
+    def ev6_rev():
+        if ee6.get() and ee5.get():
+            ev5.invoke()
 
     ee5 = IntVar()
-    ev5 = Checkbutton(setting_window, text="tag immediately", variable=ee5)
-    ev5.pack()
-    ev5.place(x=20, y=190)
+    ev5 = ttk.Checkbutton(
+        setting_window, text="재생목록 모드", variable=ee5, command=lambda: ev5_rev()
+    )
+    ev5.place(x=130, y=120)
 
-    sv1 = Button(setting_window, text="apply", command=apply)
-    sv1.place(x=30, y=250)
+    ee6 = IntVar()
+    ev6 = ttk.Checkbutton(
+        setting_window, text="분할 모드", variable=ee6, command=lambda: ev6_rev()
+    )
+    ev6.place(x=130, y=140)
 
-    tg1 = Label(setting_window, text='text1: ')
-    tg2 = Label(setting_window, text='text2: ')
-    tg3 = Label(setting_window, text='text3: ', fg='red')
-    tg4 = Label(setting_window, text='text4: ')
-    tg5 = Label(setting_window, text='text5: ')
-    tg6 = Label(setting_window, text='text6: ', fg='red')
-    tg7 = Label(setting_window, text='text7: ')
-    tg8 = Label(setting_window, text='text8: ')
-    tg9 = Label(setting_window, text='text9: ')
-    tg10 = Label(setting_window, text='text10: ')
-    tg11 = Label(setting_window, text='text11: ')
-    tg12 = Label(setting_window, text='text12: ')
-    tg13 = Label(setting_window, text='text13: ')
-    tg14 = Label(setting_window, text='text14: ')
-    tg15 = Label(setting_window, text='text15: ')
-    tg16 = Label(setting_window, text='text16: ')
-    tg17 = Label(setting_window, text='text17: ')
-    tg18 = Label(setting_window, text='text18: ')
-    tg19 = Label(setting_window, text='text19: ')
-    tg20 = Label(setting_window, text='text20: ')
+    def add_tags(x, objection):
+        global settings
+        if off != 1:
+            if x.get() == 1:
+                settings["tags"].append(objection)
+            elif x.get() == 0:
+                settings["tags"].remove(objection)
 
-    tg1.place(x=10, y=300)
-    tg2.place(x=10, y=330)
-    tg3.place(x=10, y=360)
-    tg4.place(x=10, y=390)
-    tg5.place(x=10, y=420)
-    tg6.place(x=10, y=450)
-    tg7.place(x=10, y=480)
-    tg8.place(x=10, y=510)
-    tg9.place(x=10, y=540)
-    tg10.place(x=10, y=570)
-    tg11.place(x=10, y=600)
-    tg12.place(x=10, y=630)
-    tg13.place(x=10, y=660)
-    tg14.place(x=10, y=690)
-    tg15.place(x=10, y=720)
-    tg16.place(x=10, y=750)
-    tg17.place(x=10, y=780)
-    tg18.place(x=10, y=810)
-    tg19.place(x=10, y=840)
-    tg20.place(x=10, y=870)
+    off = 1
 
-    tge1 = Entry(setting_window)
-    tge2 = Entry(setting_window)
-    tge3 = Entry(setting_window)
-    tge4 = Entry(setting_window)
-    tge5 = Entry(setting_window)
-    tge6 = Entry(setting_window)
-    tge7 = Entry(setting_window)
-    tge8 = Entry(setting_window)
-    tge9 = Entry(setting_window)
-    tge10 = Entry(setting_window)
-    tge11 = Entry(setting_window)
-    tge12 = Entry(setting_window)
-    tge13 = Entry(setting_window)
-    tge14 = Entry(setting_window)
-    tge15 = Entry(setting_window)
-    tge16 = Entry(setting_window)
-    tge17 = Entry(setting_window)
-    tge18 = Entry(setting_window)
-    tge19 = Entry(setting_window)
-    tge20 = Entry(setting_window)
+    ete1 = IntVar()
+    ete2 = IntVar()
+    ete3 = IntVar()
+    ete4 = IntVar()
+    ete5 = IntVar()
+    ete6 = IntVar()
+    ete7 = IntVar()
+    ete8 = IntVar()
+    ete9 = IntVar()
+    ete10 = IntVar()
 
-    tge1.place(x=50, y=300)
-    tge2.place(x=50, y=330)
-    tge3.place(x=50, y=360)
-    tge4.place(x=50, y=390)
-    tge5.place(x=50, y=420)
-    tge6.place(x=50, y=450)
-    tge7.place(x=50, y=480)
-    tge8.place(x=50, y=510)
-    tge9.place(x=50, y=540)
-    tge10.place(x=50, y=570)
-    tge11.place(x=50, y=600)
-    tge12.place(x=50, y=630)
-    tge13.place(x=50, y=660)
-    tge14.place(x=50, y=690)
-    tge15.place(x=50, y=720)
-    tge16.place(x=50, y=750)
-    tge17.place(x=50, y=780)
-    tge18.place(x=50, y=810)
-    tge19.place(x=50, y=840)
-    tge20.place(x=50, y=870)
+    et1 = ttk.Checkbutton(
+        setting_window,
+        text="title",
+        variable=ete1,
+        command=lambda: add_tags(ete1, "title"),
+    )
+    et2 = ttk.Checkbutton(
+        setting_window,
+        text="artist",
+        variable=ete2,
+        command=lambda: add_tags(ete2, "artist"),
+    )
+    et3 = ttk.Checkbutton(
+        setting_window,
+        text="band",
+        variable=ete3,
+        command=lambda: add_tags(ete3, "band"),
+    )
+    et4 = ttk.Checkbutton(
+        setting_window,
+        text="album",
+        variable=ete4,
+        command=lambda: add_tags(ete4, "album"),
+    )
+    et5 = ttk.Checkbutton(
+        setting_window,
+        text="comment",
+        variable=ete5,
+        command=lambda: add_tags(ete5, "comment"),
+    )
+    et6 = ttk.Checkbutton(
+        setting_window,
+        text="year",
+        variable=ete6,
+        command=lambda: add_tags(ete6, "year"),
+    )
+    et7 = ttk.Checkbutton(
+        setting_window,
+        text="track",
+        variable=ete7,
+        command=lambda: add_tags(ete7, "track"),
+    )
+    et8 = ttk.Checkbutton(
+        setting_window,
+        text="genre",
+        variable=ete8,
+        command=lambda: add_tags(ete8, "genre"),
+    )
+    et9 = ttk.Checkbutton(
+        setting_window,
+        text="composer",
+        variable=ete9,
+        command=lambda: add_tags(ete9, "composer"),
+    )
+    et10 = ttk.Checkbutton(
+        setting_window,
+        text="timing",
+        variable=ete10,
+        command=lambda: add_tags(ete10, "timing"),
+    )
 
-    tgs1 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs2 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs3 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs4 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs5 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs6 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs7 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs8 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs9 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs10 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs11 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs12 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs13 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs14 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs15 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs16 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs17 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs18 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs19 = Label(setting_window, text='where(1,2,3,4): ')
-    tgs20 = Label(setting_window, text='where(1,2,3,4): ')
+    et1.place(x=20, y=40)
+    et2.place(x=20, y=60)
+    et3.place(x=20, y=80)
+    et4.place(x=20, y=100)
+    et5.place(x=20, y=120)
+    et6.place(x=20, y=140)
+    et7.place(x=20, y=160)
+    et8.place(x=20, y=180)
+    et9.place(x=20, y=200)
+    et10.place(x=20, y=220)
 
-    tgs1.place(x=160, y=300)
-    tgs2.place(x=160, y=330)
-    tgs3.place(x=160, y=360)
-    tgs4.place(x=160, y=390)
-    tgs5.place(x=160, y=420)
-    tgs6.place(x=160, y=450)
-    tgs7.place(x=160, y=480)
-    tgs8.place(x=160, y=510)
-    tgs9.place(x=160, y=540)
-    tgs10.place(x=160, y=570)
-    tgs11.place(x=160, y=600)
-    tgs12.place(x=160, y=630)
-    tgs13.place(x=160, y=660)
-    tgs14.place(x=160, y=690)
-    tgs15.place(x=160, y=720)
-    tgs16.place(x=160, y=750)
-    tgs17.place(x=160, y=780)
-    tgs18.place(x=160, y=810)
-    tgs19.place(x=160, y=840)
-    tgs20.place(x=160, y=870)
+    et_list = [et1, et2, et3, et4, et5, et6, et7, et8, et9, et10]
 
-    tges1 = Entry(setting_window)
-    tges2 = Entry(setting_window)
-    tges3 = Entry(setting_window)
-    tges4 = Entry(setting_window)
-    tges5 = Entry(setting_window)
-    tges6 = Entry(setting_window)
-    tges7 = Entry(setting_window)
-    tges8 = Entry(setting_window)
-    tges9 = Entry(setting_window)
-    tges10 = Entry(setting_window)
-    tges11 = Entry(setting_window)
-    tges12 = Entry(setting_window)
-    tges13 = Entry(setting_window)
-    tges14 = Entry(setting_window)
-    tges15 = Entry(setting_window)
-    tges16 = Entry(setting_window)
-    tges17 = Entry(setting_window)
-    tges18 = Entry(setting_window)
-    tges19 = Entry(setting_window)
-    tges20 = Entry(setting_window)
+    def import_reload():
+        in_settings()
+        setting_window.destroy()
+        settings_open()
 
-    tges1.place(x=250, y=300)
-    tges2.place(x=250, y=330)
-    tges3.place(x=250, y=360)
-    tges4.place(x=250, y=390)
-    tges5.place(x=250, y=420)
-    tges6.place(x=250, y=450)
-    tges7.place(x=250, y=480)
-    tges8.place(x=250, y=510)
-    tges9.place(x=250, y=540)
-    tges10.place(x=250, y=570)
-    tges11.place(x=250, y=600)
-    tges12.place(x=250, y=630)
-    tges13.place(x=250, y=660)
-    tges14.place(x=250, y=690)
-    tges15.place(x=250, y=720)
-    tges16.place(x=250, y=750)
-    tges17.place(x=250, y=780)
-    tges18.place(x=250, y=810)
-    tges19.place(x=250, y=840)
-    tges20.place(x=250, y=870)
+    def find_path():
+        choosepath()
+        ee1.delete(0, len(ee1.get()))
+        ee1.insert(0, path)
 
-    tge_list = [tge1, tge2, tge3, tge4, tge5, tge6, tge7, tge8, tge9, tge10, tge11, tge12, tge13, tge14, tge15, tge16, tge17,
-        tge18, tge19, tge20]
-    tges_list = [tges1, tges2, tges3, tges4, tges5, tges6, tges7, tges8, tges9, tges10, tges11, tges12, tges13, tges14, tges15,
-        tges16, tges17, tges18, tges19, tges20]
+    ttk.Button(setting_window, text="찾기", command=find_path).place(x=150, y=30)
+    ttk.Button(setting_window, text="저장", command=apply).place(x=140, y=220)
 
-    ee1.insert(0, settings_dict['path'])
-    if settings_dict['iscreatelyric'] == 1:
-        ev2.toggle()
-    if settings_dict['ismp3'] == 1:
-        ev3.toggle()
-    if settings_dict['ismp4'] == 1:
-        ev4.toggle()
-    if settings_dict['isdownloadandtag'] == 1:
-        ev5.toggle()
-    for i in range(len(tge_list)):
-        tge_list[i].insert(0, settings_dict['hotkeyslot' + str(int(i) + 1)])
-    for i in range(len(tges_list)):
-        tges_list[i].insert(0, settings_dict['hotkeyslotwhere' + str(int(i) + 1)])
+    menubar = Menu(setting_window)
+    menu_1 = Menu(menubar, tearoff=0)
+    menu_1.add_command(label="설정불러오기", command=import_reload)
+    menu_1.add_command(label="설정내보내기", command=ex_settings)
+    menubar.add_cascade(label="파일", menu=menu_1)
+
+    setting_window.config(menu=menubar)
+
+    ee1.insert(0, path)
+    if settings["ismp3"] == 1:
+        ev3.invoke()
+    if settings["ismp4"] == 1:
+        ev4.invoke()
+    if settings["playlistmode"] == 1:
+        ev5.invoke()
+    elif settings["splitmode"] == 1:
+        ev6.invoke()
+
+    for i in settings["tags"]:
+        et_list[property_str_list.index(i)].invoke()
+
+    off = 0
 
     setting_window.mainloop()
 
 
-# =================================================리스트=================================================
-# =================================================리스트=================================================
-# =================================================리스트=================================================
+########################################################################################################################
+######################################################             #####################################################
+######################################################    리스트    #####################################################
+######################################################             #####################################################
+########################################################################################################################
 
 
-def save():
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    yturl = e1.get()
-    filename = e2.get()
-    artistname = e3.get()
-    albumname = e4.get()
-    e1.delete(0, len(e1.get()))
-    e2.delete(0, len(e2.get()))
-    e3.delete(0, len(e3.get()))
-    e4.delete(0, len(e4.get()))
-    e5.delete(0, len(e5.get()))
+def save():  # 정보 저장
+    global properties, selected_index
+    if list_mode == 0:
+        properties.append({})
 
-    if_incorrect = 0
-    for i in range(len(f'{filename}')):
-        if f'{filename[i]}' == '.' or f'{filename[i]}' == '/' or f'{filename[i]}' == '\\' or f'{filename[i]}' == ':'\
-            or f'{filename[i]}' == '*' or f'{filename[i]}' == '?' or f'{filename[i]}' == '"' or f'{filename[i]}' == '<'\
-            or f'{filename[i]}' == '>' or f'{filename[i]}' == '|' or f'{filename[i]}' == '%' or f'{filename[i]}' == '≒':
-            if_incorrect = 1
-
-    if yturl == None:
-        e5.insert(0, 'incorrect youtube url')
-
-    # [실험적]
-    elif yturl == "vocaloid" or yturl == "vcl":
-        vcl()
-
-    elif filename == None:
-        e5.insert(0, 'incorrect fliename')
-    elif yturl == None:
-        e5.insert(0, 'incorrect url')
-    elif if_incorrect == 1:
-        e5.insert(0, 'incorrent filename')
+    url = e1.get().replace("\n", "")
+    if url != "":
+        properties[selected_index]["url"] = url
     else:
-        url_list.append(yturl)
-        name_list.append(filename)
-        artist_list.append(artistname)
-        album_list.append(albumname)
-        e5.insert(0, 'saved - %s' % filename)
+        msg("incorrect youtube url")
+        return
+
+    if e2.get() != "":
+        properties[selected_index]["filename"] = (
+            e2.get()
+            .replace("\n", "")
+            .replace("/", "／")
+            .replace("\\", "＼")
+            .replace(":", "：")
+            .replace("*", "＊")
+            .replace("?", "？")
+            .replace('"', "＂")
+            .replace("<", "＜")
+            .replace(">", "＞")
+            .replace("|", "｜")
+        )
+    else:
+        try:
+            properties[selected_index]["filename"] = (
+                YouTube(url)
+                .title.replace("\n", "")
+                .replace("/", "／")
+                .replace("\\", "＼")
+                .replace(":", "：")
+                .replace("*", "＊")
+                .replace("?", "？")
+                .replace('"', "＂")
+                .replace("<", "＜")
+                .replace(">", "＞")
+                .replace("|", "｜")
+            )
+        except:
+            properties[selected_index][
+                "filename"
+            ] = f"__No_Title_{str(random.randint(0, 9)) + str(random.randint(0, 9)) + str(random.randint(0, 9)) + str(random.randint(0, 9))}__"
+
+    for i in range(len(settings["tags"])):
+        if e_list[i + 2].get() != "":
+            properties[selected_index][settings["tags"][i]] = (
+                e_list[i + 2].get().replace("\n", "")
+            )
+
+    properties[selected_index]["playlist"] = cbv1.get()
+    properties[selected_index]["split"] = cbv2.get()
+
+    if list_mode == 1:
+        e2.config(values=[i["filename"] for i in properties])
+    else:
+        for i in e_list:
+            i.delete(0, len(i.get()))
+
+    msg(f"saved - {properties[selected_index]['filename']}")
 
 
 def vcl():  # for test
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    url_list.append("https://www.youtube.com/watch?v=UnIhRpIT7nc")
-    name_list.append("ラグトレイン")
-    artist_list.append("歌愛ユキ")
-    album_list.append("稲葉曇")
-    url_list.append("https://www.youtube.com/watch?v=e1xCOsgWG0M")
-    name_list.append("ヴァンパイア")
-    artist_list.append("初音ミク")
-    album_list.append("DECO*27")
-    url_list.append("https://www.youtube.com/watch?v=emrt46SRyYs")
-    name_list.append("DAYBREAK FRONTLINE")
-    artist_list.append("IA")
-    album_list.append("Orangestar")
-    url_list.append("https://www.youtube.com/watch?v=romqp_SB4tU")
-    name_list.append("ノイローゼ")
-    artist_list.append("v flower")
-    album_list.append("栗山夕璃")
-    url_list.append("https://www.youtube.com/watch?v=ARt2fVT33Lw")
-    name_list.append("SLoWMoTIoN")
-    artist_list.append("初音ミク")
-    album_list.append("ピノキオピー")
-    e5.delete(0, len(e5.get()))
-    e5.insert(0, 'リストを確認してみて！')
+    global properties
+    properties = [
+        {
+            "url": "https://www.youtube.com/watch?v=UnIhRpIT7nc",
+            "filename": "ラグトレイン",
+            "artist": "歌愛ユキ",
+            "composer": "稲葉曇",
+        },
+        {
+            "url": "https://www.youtube.com/watch?v=emrt46SRyYs",
+            "filename": "DAYBREAK FRONTLINE",
+            "artist": "IA",
+            "composer": "Orangestar",
+        },
+        {
+            "url": "https://www.nicovideo.jp/watch/sm23648996",
+            "filename": "SLoWMoTIoN",
+            "artist": "初音ミク",
+            "composer": "ピノキオピー",
+        },
+        {
+            "url": "https://www.youtube.com/watch?v=e1xCOsgWG0M",
+            "filename": "ヴァンパイア",
+            "artist": "初音ミク",
+            "composer": "DECO*27",
+        },
+    ]
+
+    msg("リストを確認してみて！")
 
 
 def reset():
     e1.delete(0, len(e1.get()))
     e2.delete(0, len(e2.get()))
-    e3.delete(0, len(e3.get()))
-    e4.delete(0, len(e4.get()))
-    e5.delete(0, len(e5.get()))
-    e5.insert(0, 'clear')
+    for i in e_list:
+        i.delete(0, len(i.get()))
+    msg("clear")
 
 
-def see_list():
-    seelist = ""
-    for i in range(len(name_list)):
-        seelist += name_list[i] + " : " + url_list[i] + "\n"
-    nwindow = Toplevel(window)
-    nwindow.geometry('500x200')
-    nwindow.resizable(width=True, height=True)
-    nl1 = Label(nwindow, text=seelist)
-    nl1.place(x=10, y=10)
-    nwindow.mainloop()
-
-
-def one_delete():
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    del url_list[-1]
-    del name_list[-1]
-    del artist_list[-1]
-    del album_list[-1]
-    e5.delete(0, len(e5.get()))
-    e5.insert(0, 'undo completed')
-
-
-def list_reset():
-    global url_list
-    global name_list
-    global artist_list
-    global album_list
-    url_list = []
-    name_list = []
-    artist_list = []
-    album_list = []
-    e5.delete(0, len(e5.get()))
-    e5.insert(0, 'list reset completed')
-
-
-# =================================================창=================================================
-# =================================================창=================================================
-# =================================================창=================================================
+########################################################################################################################
+########################################################          ######################################################
+########################################################    창    ######################################################
+########################################################          ######################################################
+########################################################################################################################
 
 
 def info():
-    loading = codecs.open('C:/Users/dongi/Desktop/min/info.txt', 'rb', 'utf-8')
+    loading = codecs.open(f"{path}/min/info.txt", "rb", "utf-8")
     loadedinfo = loading.read()
     loading.close()
     nwindow = Toplevel(window)
-    nwindow.geometry('300x300')
-    nwindow.resizable(width=True, height=True)
+    window_set(nwindow, "300x300", "경로 설정", True)
     nl1 = Label(nwindow, text=loadedinfo)
     nl1.place(x=10, y=10)
+
     nwindow.mainloop()
 
 
+def choosepath():
+    global path
+
+    path = askdirectory(title="min 폴더가 있는 경로, 또는 새로 만들고 싶은 경로를 선택").replace("min", "")
+    if path != "":
+        path = path.replace("\\", "/")
+    else:
+        path = os.getcwd().replace("\\", "/")
+
+    if path[-1] == "/":
+        path = path[:-1]
+
+    try:  # min 생성 + 필수파일생성
+        os.mkdir(f"{path}/min")
+        os.mkdir(f"{path}/min/extensions")
+        os.mkdir(f"{path}/min/mp4")
+        os.mkdir(f"{path}/min/mp3")
+    except:
+        pass
+
+    try:
+        if "settings.json" not in os.listdir(f"{path}/min"):
+            creating = codecs.open(f"{path}/min/settings.json", "w", "utf-8")
+            creating.close()
+        else:
+            in_settings()
+    except:
+        pass
+
+    try:
+        if "savelist.json" not in os.listdir(f"{path}/min"):
+            creating = codecs.open(f"{path}/min/savelist.json", "w", "utf-8")
+            creating.close()
+    except:
+        pass
+
+
 def main_loop():
-    global window
-    global e1
-    global e2
-    global e3
-    global e4
-    global e5
-    global is_first
-    global is_loaded_settings
-
-
-    def first_run():
-        global is_first
-        global is_loaded_settings
-
-        if is_first == 1:
-            try:
-                loading = codecs.open('C:/Users/%s/Desktop/min/settings.txt' % getpass.getuser(), 'rb', 'utf-8')
-                settings_list = loading.read().replace('\r', '').split('\n')
-                loading.close()
-                for i in range(len(settings_dict)):
-                    try:
-                        settings_dict[settings_list[i].split('=')[0]] = int(settings_list[i].split('=')[1])
-                    except:
-                        settings_dict[settings_list[i].split('=')[0]] = settings_list[i].split('=')[1]
-
-                is_first = 0
-                is_loaded_settings = 1
-                window.destroy()
-                main_loop()
-
-            except:
-                pass
-            try:
-                in_txt()
-            except:
-                pass
-            is_first = 0
-
+    global window, e_list, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, ei, ea_list, list_mode, selected_index, cbv1, cbv2
 
     window = Tk()
-    window.geometry('260x390')
-    window.resizable(width=False, height=False)
-    window.configure()
-    first_run()
+    window_set(window, f'360x{250 + 55 * len(settings["tags"])}', "ＭＰＳ", resizable=True)
 
+    mouse_track(window)
 
-    def winres():
-        if cv1.get() == 0:
-            window.geometry('260x390')
-            window.resizable(width=False, height=False)
-        elif cv1.get() == 1:
-            window.geometry('280x650')
-            window.resizable(width=True, height=True)
+    Label(
+        window,
+        text="MaschinenPistole Speichermedien",
+        font="helvetica 16 bold",
+        cursor="dot",
+    ).place(x=5, y=1)
 
+    ei = ttk.Entry(window, width=49)
+    ei.place(x=7, y=220 + 55 * len(settings["tags"]))
 
-    l1 = Label(window, text='Mp3 downloader', fg='red', font='helvetica 16 bold')
-    l2 = Label(window, text='url: ')
-    l3 = Label(window, text='set name: ')
-    l4 = Label(window, text='artist: ')
-    l5 = Label(window, text='album: ')
+    def url_title(x):
+        try:
+            x.insert(len(x.get()), YouTube(e1.get()).title)
+        except:
+            pass
 
-    l1.place(x=15, y=10)
-    l2.place(x=10, y=40)
-    l3.place(x=10, y=70)
-    l4.place(x=10, y=100)
-    l5.place(x=10, y=130)
+    def url_author(x):
+        try:
+            x.insert(len(x.get()), YouTube(e1.get()).author)
+        except:
+            pass
 
-    e1 = Entry(window)
-    e2 = Entry(window)
-    e3 = Entry(window)
-    e4 = Entry(window)
-    e5 = Entry(window)
+    def one_delete():
+        global properties
+        del properties[-1]
+        msg("undo-ed")
 
-    e1.place(x=75, y=40)
-    e2.place(x=75, y=70)
-    e3.place(x=75, y=100)
-    e4.place(x=75, y=130)
-    e5.place(x=75, y=200)
+    def current_delete():
+        global properties
+        del properties[selected_index]
+        e2.config(values=[i["filename"] for i in properties])
+        if properties == []:
+            slst_rev()
 
-    b001 = Button(window, text="정보 저장", command=save)
-    b002 = Button(window, text="리셋", command=reset)
+    def list_clear():
+        properties.clear()
+        slst_rev()
 
-    b001.place(x=60, y=160)
-    b002.place(x=150, y=160)
+    def list_mode_set(dummy):
+        global selected_index
+        selected_index = [i["filename"] for i in properties].index(e2.get())
 
-    b111 = Button(window, text="1개 취소", command=one_delete)
-    b112 = Button(window, text="리스트 리셋", command=list_reset)
-    b113 = Button(window, text="리스트 보기", command=see_list)
-    b211 = Button(window, text="태그하기", command=tagging)
-    b212 = Button(window, text="다운로드", command=downloading)
-    b213 = Button(window, text="정리(재실행)", command=mp4_all_delete)
-    b311 = Button(window, text="설정", command=settings_open)
-    b312 = Button(window, text="가사태그하기", command=lyric_tagging)
-    b313 = Button(window, text="설정불러오기", command=in_settings)
-    b411 = Button(window, text="불러오기", command=in_txt)
-    b412 = Button(window, text="내보내기", command=ex_txt)
-    b413 = Button(window, text="설정내보내기", command=ex_settings)
+        e1.delete(0, len(e1.get()))
+        for i in e_list[2::]:
+            i.delete(0, len(i.get()))
 
+        e1.insert(0, properties[selected_index]["url"])
+        for i in range(len(settings["tags"])):
+            if settings["tags"][i] in list(properties[selected_index].keys()):
+                e_list[i + 2].insert(0, properties[selected_index][settings["tags"][i]])
 
-    b111.place(x=10, y=230)
-    b112.place(x=80, y=230)
-    b113.place(x=170, y=230)
-    b211.place(x=10, y=260)
-    b212.place(x=80, y=260)
-    b213.place(x=170, y=260)
-    b311.place(x=10, y=290)
-    b312.place(x=80, y=290)
-    b313.place(x=170, y=290)
-    b411.place(x=10, y=320)
-    b412.place(x=80, y=320)
-    b413.place(x=170, y=320)
+    ttk.Button(window, text="정보 저장", command=save).place(
+        x=40, y=160 + 55 * len(settings["tags"])
+    )
 
-    cv1 = IntVar()  # 버튼 체크시 1, 비 체크시 0
-    cb1 = Checkbutton(window, text="모드 vcl", variable=cv1, command=winres)
-    cb1.pack()
-    cb1.place(x=10, y=350)
+    ttk.Button(window, text="다운로드", command=downloading).place(
+        x=130, y=187 + 55 * len(settings["tags"])
+    )
 
-    bsp1 = Button(window, text="정보", command=info)
-    bsp1.place(x=150, y=350)
+    cbv1 = IntVar()
+    cbv2 = IntVar()
 
-    b0211 = Button(window, text=settings_dict['hotkeyslot1'], command=hotkey_input_1)
-    b0212 = Button(window, text=settings_dict['hotkeyslot2'], command=hotkey_input_2)
-    b0213 = Button(window, text=settings_dict['hotkeyslot3'], command=hotkey_input_3)
-    b0221 = Button(window, text=settings_dict['hotkeyslot4'], command=hotkey_input_4)
-    b0222 = Button(window, text=settings_dict['hotkeyslot5'], command=hotkey_input_5)
-    b0223 = Button(window, text=settings_dict['hotkeyslot6'], command=hotkey_input_6)
-    b0231 = Button(window, text=settings_dict['hotkeyslot7'], command=hotkey_input_7)
-    b0232 = Button(window, text=settings_dict['hotkeyslot8'], command=hotkey_input_8)
-    b0241 = Button(window, text=settings_dict['hotkeyslot9'], command=hotkey_input_9)
-    b0242 = Button(window, text=settings_dict['hotkeyslot10'], command=hotkey_input_10)
-    b0251 = Button(window, text=settings_dict['hotkeyslot11'], command=hotkey_input_11)
-    b0252 = Button(window, text=settings_dict['hotkeyslot12'], command=hotkey_input_12)
-    b0261 = Button(window, text=settings_dict['hotkeyslot13'], command=hotkey_input_13)
-    b0262 = Button(window, text=settings_dict['hotkeyslot14'], command=hotkey_input_14)
-    b0271 = Button(window, text=settings_dict['hotkeyslot15'], command=hotkey_input_15)
-    b0272 = Button(window, text=settings_dict['hotkeyslot16'], command=hotkey_input_16)
-    b0281 = Button(window, text=settings_dict['hotkeyslot17'], command=hotkey_input_17)
-    b0282 = Button(window, text=settings_dict['hotkeyslot18'], command=hotkey_input_18)
-    b0291 = Button(window, text=settings_dict['hotkeyslot19'], command=hotkey_input_19)
-    b0292 = Button(window, text=settings_dict['hotkeyslot20'], command=hotkey_input_20)
+    ttk.Checkbutton(window, text="재생목록 모드", variable=cbv1).place(x=222, y=162 + 55 * len(settings["tags"]))
+    ttk.Checkbutton(window, text="분할 모드", variable=cbv2).place(x=222, y=189 + 55 * len(settings["tags"]))
 
-    b0211.place(x=10, y=400)
-    b0212.place(x=100, y=400)
-    b0213.place(x=200, y=400)
-    b0221.place(x=10, y=425)
-    b0222.place(x=100, y=425)
-    b0223.place(x=200, y=425)
-    b0231.place(x=10, y=450)
-    b0232.place(x=100, y=450)
-    b0241.place(x=10, y=475)
-    b0242.place(x=100, y=475)
-    b0251.place(x=10, y=500)
-    b0252.place(x=100, y=500)
-    b0261.place(x=10, y=525)
-    b0262.place(x=100, y=525)
-    b0271.place(x=10, y=550)
-    b0272.place(x=100, y=550)
-    b0281.place(x=10, y=575)
-    b0282.place(x=100, y=575)
-    b0291.place(x=10, y=600)
-    b0292.place(x=100, y=600)
+    if list_mode == 0:
+        ttk.Button(window, text="리셋", command=reset).place(
+            x=130, y=160 + 55 * len(settings["tags"])
+        )
+        ttk.Button(window, text="1개 취소", command=one_delete).place(
+            x=40, y=187 + 55 * len(settings["tags"])
+        )
+        e2 = ttk.Entry(window, width=40)
+    else:
+        ttk.Button(window, text="삭제", command=current_delete).place(
+            x=130, y=160 + 55 * len(settings["tags"])
+        )
+        ttk.Button(window, text="리스트 초기화", command=list_clear).place(
+            x=40, y=187 + 55 * len(settings["tags"])
+        )
+        e2 = ttk.Combobox(window, width=38, values=[i["filename"] for i in properties])
+        e2.bind("<<ComboboxSelected>>", list_mode_set)
 
-    if is_loaded_settings == 1:
-        e5.delete(0, len(e5.get()))
-        e5.insert(0, 'settings loaded')
-        is_loaded_settings = 0
+    e1 = ttk.Entry(window, width=40)
+    e3 = ttk.Entry(window, width=40)
+    e4 = ttk.Entry(window, width=40)
+    e5 = ttk.Entry(window, width=40)
+    e6 = ttk.Entry(window, width=40)
+    e7 = ttk.Entry(window, width=40)
+    e8 = ttk.Entry(window, width=40)
+    e9 = ttk.Entry(window, width=40)
+    e10 = ttk.Entry(window, width=40)
+    e11 = ttk.Entry(window, width=40)
+    e12 = ttk.Entry(window, width=40)
+    ea_list = [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12]
+
+    e1.place(x=65, y=40)
+    e2.place(x=65, y=95)
+    Label(window, text="url:").place(x=1, y=40)
+    Label(window, text="filename:").place(x=1, y=95)
+    ttk.Button(
+        window,
+        text="붙여넣기",
+        command=lambda: e1.insert(len(e1.get()), str(clipboard.paste())),
+    ).place(x=65, y=65)
+    ttk.Button(
+        window,
+        text="붙여넣기",
+        command=lambda: e2.insert(len(e2.get()), str(clipboard.paste())),
+    ).place(x=65, y=120)
+    ttk.Button(window, text="삭제", command=lambda: e1.delete(0, len(e1.get()))).place(
+        x=155, y=65
+    )
+    ttk.Button(window, text="삭제", command=lambda: e2.delete(0, len(e2.get()))).place(
+        x=155, y=120
+    )
+    ttk.Button(window, text="가져오기", command=lambda: url_title(e2)).place(x=245, y=120)
+    e_list = [e1, e2]
+
+    for i in range(len(settings["tags"])):
+        ea_list[2:][i].place(x=65, y=150 + 55 * i)
+        Label(window, text=f'{settings["tags"][i]}:').place(x=1, y=150 + 55 * i)
+        e_list.append(ea_list[2:][i])
+        bt_copy_arg, bt_del_arg = partial(
+            lambda x: x.insert(len(x.get()), str(clipboard.paste())), ea_list[2:][i]
+        ), partial(lambda x: x.delete(0, len(x.get())), ea_list[2:][i])
+        ttk.Button(window, text="붙여넣기", command=bt_copy_arg).place(x=65, y=175 + 55 * i)
+        ttk.Button(window, text="삭제", command=bt_del_arg).place(x=155, y=175 + 55 * i)
+
+    if "artist" in settings["tags"]:
+        ttk.Button(
+            window,
+            text="가져오기",
+            command=lambda: url_author(ea_list[2:][settings["tags"].index("artist")]),
+        ).place(x=245, y=175 + 55 * settings["tags"].index("artist"))
+
+    if "title" in settings["tags"]:
+        ttk.Button(
+            window,
+            text="가져오기",
+            command=lambda: url_title(ea_list[2:][settings["tags"].index("title")]),
+        ).place(x=245, y=175 + 55 * settings["tags"].index("title"))
+
+    ttk.Button(
+        window,
+        text="창 리셋",
+        command=lambda: window_set(
+            window,
+            f'360x{250 + 55 * len(settings["tags"])}',
+            window.title() + "：ＲＥ",
+            resizable=True,
+        ),
+    ).place(x=10, y=275 + 55 * len(settings["tags"]))
+
+    def slst_rev():
+        global list_mode, selected_index
+        if properties:
+            if list_mode == 0:
+                list_mode = 1
+            else:
+                list_mode = 0
+                selected_index = -1
+            window.destroy()
+            main_loop()
+        elif list_mode == 1:
+            list_mode = 0
+            selected_index = -1
+            window.destroy()
+            main_loop()
+
+    def hotkey_settings_enter():
+        window.destroy()
+        hotkey_settings()
+
+    menubar = Menu(window)
+    menu_1 = Menu(menubar, tearoff=0)
+    menu_1.add_command(label="설정", command=settings_open)
+    menu_1.add_command(label="목록 모드 토글", command=slst_rev)
+    menu_1.add_command(label="목록 불러오기", command=in_txt)
+    menu_1.add_command(label="목록 내보내기", command=ex_txt)
+    menubar.add_cascade(label="파일", menu=menu_1)
+
+    menu_2 = Menu(menubar, tearoff=0)
+    menu_2.add_command(label="핫키", command=hotkey_floatings)
+    menu_2.add_command(label="핫키 설정", command=hotkey_settings_enter)
+    menubar.add_cascade(label="핫키", menu=menu_2)
+
+    menu_3 = Menu(menubar, tearoff=0)
+    menu_3.add_command(label="재생목록/분할")
+    menu_3.add_command(label="가사 태그기")
+    menubar.add_cascade(label="확장", menu=menu_3)
+
+    menu_4 = Menu(menubar, tearoff=0)
+    menu_4.add_command(label="정보")
+    menu_4.add_command(label="경로 정리", command=mp4_all_delete)
+    menu_4.add_command(label="테스트", command=vcl)
+    menubar.add_cascade(label="기타", menu=menu_4)
+
+    window.config(menu=menubar)
 
     window.mainloop()
 
 
-# =================================================핫키입력=================================================
-# =================================================핫키입력=================================================
-# =================================================핫키입력=================================================
+########################################################################################################################
+######################################################               ###################################################
+######################################################    핫키 입력    ###################################################
+######################################################               ###################################################
+########################################################################################################################
 
 
-def hotkey_input_1():
-    if settings_dict['hotkeyslotwhere1'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot1'])
-    elif settings_dict['hotkeyslotwhere1'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot1'])
-    elif settings_dict['hotkeyslotwhere1'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot1'])
-    elif settings_dict['hotkeyslotwhere1'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot1'])
-def hotkey_input_2():
-    if settings_dict['hotkeyslotwhere2'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot2'])
-    elif settings_dict['hotkeyslotwhere2'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot2'])
-    elif settings_dict['hotkeyslotwhere2'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot2'])
-    elif settings_dict['hotkeyslotwhere2'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot2'])
-def hotkey_input_3():
-    if settings_dict['hotkeyslotwhere3'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot3'])
-    elif settings_dict['hotkeyslotwhere3'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot3'])
-    elif settings_dict['hotkeyslotwhere3'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot3'])
-    elif settings_dict['hotkeyslotwhere3'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot3'])
-def hotkey_input_4():
-    if settings_dict['hotkeyslotwhere4'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot4'])
-    elif settings_dict['hotkeyslotwhere4'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot4'])
-    elif settings_dict['hotkeyslotwhere4'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot4'])
-    elif settings_dict['hotkeyslotwhere4'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot4'])
-def hotkey_input_5():
-    if settings_dict['hotkeyslotwhere5'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot5'])
-    elif settings_dict['hotkeyslotwhere5'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot5'])
-    elif settings_dict['hotkeyslotwhere5'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot5'])
-    elif settings_dict['hotkeyslotwhere5'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot5'])
-def hotkey_input_6():
-    if settings_dict['hotkeyslotwhere6'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot6'])
-    elif settings_dict['hotkeyslotwhere6'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot6'])
-    elif settings_dict['hotkeyslotwhere6'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot6'])
-    elif settings_dict['hotkeyslotwhere6'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot6'])
-def hotkey_input_7():
-    if settings_dict['hotkeyslotwhere7'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot7'])
-    elif settings_dict['hotkeyslotwhere7'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot7'])
-    elif settings_dict['hotkeyslotwhere7'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot7'])
-    elif settings_dict['hotkeyslotwhere7'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot7'])
-def hotkey_input_8():
-    if settings_dict['hotkeyslotwhere8'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot8'])
-    elif settings_dict['hotkeyslotwhere8'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot8'])
-    elif settings_dict['hotkeyslotwhere8'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot8'])
-    elif settings_dict['hotkeyslotwhere8'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot8'])
-def hotkey_input_9():
-    if settings_dict['hotkeyslotwhere9'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot9'])
-    elif settings_dict['hotkeyslotwhere9'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot9'])
-    elif settings_dict['hotkeyslotwhere9'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot9'])
-    elif settings_dict['hotkeyslotwhere9'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot9'])
-def hotkey_input_10():
-    if settings_dict['hotkeyslotwhere10'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot10'])
-    elif settings_dict['hotkeyslotwhere10'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot10'])
-    elif settings_dict['hotkeyslotwhere10'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot10'])
-    elif settings_dict['hotkeyslotwhere10'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot10'])
-def hotkey_input_11():
-    if settings_dict['hotkeyslotwhere11'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot11'])
-    elif settings_dict['hotkeyslotwhere11'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot11'])
-    elif settings_dict['hotkeyslotwhere11'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot11'])
-    elif settings_dict['hotkeyslotwhere11'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot11'])
-def hotkey_input_12():
-    if settings_dict['hotkeyslotwhere12'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot12'])
-    elif settings_dict['hotkeyslotwhere12'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot12'])
-    elif settings_dict['hotkeyslotwhere12'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot12'])
-    elif settings_dict['hotkeyslotwhere12'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot12'])
-def hotkey_input_13():
-    if settings_dict['hotkeyslotwhere13'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot13'])
-    elif settings_dict['hotkeyslotwhere13'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot13'])
-    elif settings_dict['hotkeyslotwhere13'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot13'])
-    elif settings_dict['hotkeyslotwhere13'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot13'])
-def hotkey_input_14():
-    if settings_dict['hotkeyslotwhere14'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot14'])
-    elif settings_dict['hotkeyslotwhere14'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot14'])
-    elif settings_dict['hotkeyslotwhere14'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot14'])
-    elif settings_dict['hotkeyslotwhere14'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot14'])
-def hotkey_input_15():
-    if settings_dict['hotkeyslotwhere15'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot15'])
-    elif settings_dict['hotkeyslotwhere15'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot15'])
-    elif settings_dict['hotkeyslotwhere15'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot15'])
-    elif settings_dict['hotkeyslotwhere15'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot15'])
-def hotkey_input_16():
-    if settings_dict['hotkeyslotwhere16'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot16'])
-    elif settings_dict['hotkeyslotwhere16'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot16'])
-    elif settings_dict['hotkeyslotwhere16'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot16'])
-    elif settings_dict['hotkeyslotwhere16'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot16'])
-def hotkey_input_17():
-    if settings_dict['hotkeyslotwhere17'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot17'])
-    elif settings_dict['hotkeyslotwhere17'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot17'])
-    elif settings_dict['hotkeyslotwhere17'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot17'])
-    elif settings_dict['hotkeyslotwhere17'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot17'])
-def hotkey_input_18():
-    if settings_dict['hotkeyslotwhere18'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot18'])
-    elif settings_dict['hotkeyslotwhere18'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot18'])
-    elif settings_dict['hotkeyslotwhere18'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot18'])
-    elif settings_dict['hotkeyslotwhere18'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot18'])
-def hotkey_input_19():
-    if settings_dict['hotkeyslotwhere19'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot19'])
-    elif settings_dict['hotkeyslotwhere19'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot19'])
-    elif settings_dict['hotkeyslotwhere19'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot19'])
-    elif settings_dict['hotkeyslotwhere19'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot19'])
-def hotkey_input_20():
-    if settings_dict['hotkeyslotwhere20'] == 1:
-        e1.insert(0, settings_dict['hotkeyslot20'])
-    elif settings_dict['hotkeyslotwhere20'] == 2:
-        e2.insert(0, settings_dict['hotkeyslot20'])
-    elif settings_dict['hotkeyslotwhere20'] == 3:
-        e3.insert(0, settings_dict['hotkeyslot20'])
-    elif settings_dict['hotkeyslotwhere20'] == 4:
-        e4.insert(0, settings_dict['hotkeyslot20'])
+def hotkey_settings():
+    global properties, settings
+
+    hkwindow = Tk()
+    window_set(hkwindow, f"450x{len(settings['hotkeys']) * 30 + 110}", "핫키 설정", True)
+
+    # url, filename, title, artist, band, album, comment, year: int, track: int, genre, composer, timing
+    hkentry_list = []
+    str_values = [
+        "url",
+        "filename",
+        "title",
+        "artist",
+        "band",
+        "album",
+        "comment",
+        "year",
+        "track",
+        "genre",
+        "composer",
+        "timing",
+    ]
+
+    for i in settings["hotkeys"]:
+        hkentry_list.append(
+            [
+                ttk.Entry(hkwindow, width=27),
+                ttk.Combobox(hkwindow, values=str_values, state="readonly"),
+            ]
+        )
+        hkentry_list[-1][0].place(x=20, y=(len(hkentry_list) * 30 + 20))
+        hkentry_list[-1][0].insert(0, i["contents"])
+        hkentry_list[-1][1].place(x=240, y=(len(hkentry_list) * 30 + 20))
+        hkentry_list[-1][1].set(i["location"])
+
+    Label(hkwindow, text="contents").place(x=20, y=20)
+    Label(hkwindow, text="location").place(x=240, y=20)
+
+    def hotkey_extend():
+        hkentry_list.append(
+            [
+                ttk.Entry(hkwindow, width=27),
+                ttk.Combobox(hkwindow, values=str_values, state="readonly"),
+            ]
+        )
+        hkentry_list[-1][0].place(x=20, y=(len(hkentry_list) * 30 + 20))
+        hkentry_list[-1][1].place(x=240, y=(len(hkentry_list) * 30 + 20))
+        hb1.place(x=20, y=(len(hkentry_list) * 30 + 50))
+        hb2.place(x=130, y=(len(hkentry_list) * 30 + 50))
+        hb3.place(x=240, y=(len(hkentry_list) * 30 + 50))
+        window_set(hkwindow, f"450x{len(hkentry_list) * 30 + 110}", "핫키 설정", True)
+
+    def hotkey_del():
+        global settings
+        settings["hotkeys"] = []
+        hkwindow.destroy()
+        main_loop()
+
+    def hotkey_apply():
+        global settings
+        settings["hotkeys"] = []
+        for i in hkentry_list:
+            settings["hotkeys"].append({"contents": i[0].get(), "location": i[1].get()})
+        hkwindow.destroy()
+        main_loop()
+
+    hb1 = ttk.Button(hkwindow, text="확장", command=hotkey_extend)
+    hb2 = ttk.Button(hkwindow, text="초기화", command=hotkey_del)
+    hb3 = ttk.Button(hkwindow, text="확정", command=hotkey_apply)
+
+    hb1.place(x=20, y=(len(hkentry_list) * 30 + 50))
+    hb2.place(x=130, y=(len(hkentry_list) * 30 + 50))
+    hb3.place(x=240, y=(len(hkentry_list) * 30 + 50))
 
 
-# =================================================기초셋팅=================================================
-# =================================================기초셋팅=================================================
-# =================================================기초셋팅=================================================
+def hotkey_floatings():
+    hkft_window = Toplevel(window)
+    window_set(
+        hkft_window, f"320x{((len(settings['hotkeys']) - 1) // 2) * 30 + 50}", "핫키"
+    )
+    bt_list = []
 
-url_list = []
-name_list = []
-artist_list = []
-album_list = []
-is_first = 1
-is_loaded_settings = 0
-settings_dict = {'path': '', 'iscreatelyric': 0, 'ismp3': 1, 'ismp4': 0, 'isdownloadandtag': 0,
-        'hotkeyslot1': '', 'hotkeyslot2': '', 'hotkeyslot3': '', 'hotkeyslot4': '', 'hotkeyslot5': '',
-        'hotkeyslot6': '', 'hotkeyslot7': '', 'hotkeyslot8': '', 'hotkeyslot9': '', 'hotkeyslot10': '',
-        'hotkeyslot11': '', 'hotkeyslot12': '', 'hotkeyslot13': '', 'hotkeyslot14': '', 'hotkeyslot15': '',
-        'hotkeyslot16': '', 'hotkeyslot17': '', 'hotkeyslot18': '', 'hotkeyslot19': '', 'hotkeyslot20': '',
-        'hotkeyslotwhere1': '', 'hotkeyslotwhere2': '', 'hotkeyslotwhere3': '', 'hotkeyslotwhere4': '', 'hotkeyslotwhere5': '',
-        'hotkeyslotwhere6': '', 'hotkeyslotwhere7': '', 'hotkeyslotwhere8': '', 'hotkeyslotwhere9': '', 'hotkeyslotwhere10': '',
-        'hotkeyslotwhere11': '', 'hotkeyslotwhere12': '', 'hotkeyslotwhere13': '', 'hotkeyslotwhere14': '', 'hotkeyslotwhere15': '',
-        'hotkeyslotwhere16': '', 'hotkeyslotwhere17': '', 'hotkeyslotwhere18': '', 'hotkeyslotwhere19': '', 'hotkeyslotwhere20': ''
-        }
+    def text_insert(content, loaction):
+        if loaction == "url":
+            e1.insert(len(e1.get()), content)
+        elif loaction == "filename":
+            e2.insert(len(e2.get()), content)
+        else:
+            if loaction in settings["tags"]:
+                e_list[settings["tags"].index(loaction) + 2].insert(
+                    len(e_list[settings["tags"].index(loaction) + 2].get()), content
+                )
 
-# =================================================구동부=================================================
-# =================================================구동부=================================================
-# =================================================구동부=================================================
+    for i in settings["hotkeys"]:
+        bt_list.append(ttk.Button(hkft_window, text=i["contents"], width=11))
+        Label(hkft_window, text=i["location"]).place(
+            x=(100 + 150 * ((len(bt_list) - 1) % 2)),
+            y=(((len(bt_list) - 1) // 2) * 30 + 10),
+        )
+        bt_list[-1].place(
+            x=(10 + 150 * ((len(bt_list) - 1) % 2)),
+            y=(((len(bt_list) - 1) // 2) * 30 + 10),
+        )
+        text_insert_arg = partial(text_insert, i["contents"], i["location"])
+        bt_list[-1].configure(command=text_insert_arg)
 
+
+########################################################################################################################
+######################################################             #####################################################
+######################################################    구동부    #####################################################
+######################################################             #####################################################
+########################################################################################################################
+
+
+choosepath()
 main_loop()

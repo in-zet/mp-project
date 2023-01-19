@@ -1,2 +1,5 @@
 # ignore all files in any directory named temp
 temp/
+venv/
+project-files/min/
+project-files/backups/
